@@ -3,6 +3,7 @@ package com.restaurantsystem.restaurantmanagementapi.controller;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserCreateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.response.UserResponse;
+import com.restaurantsystem.restaurantmanagementapi.enums.Role;
 import com.restaurantsystem.restaurantmanagementapi.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,10 +25,17 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PostMapping
-    @Operation(summary = "Criar novo usuário", description = "Cadastra um usuário no sistema")
-    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserCreateRequest request) {
-        UserResponse response = userService.create(request);
+    @PostMapping("/register/client")
+    @Operation(summary = "Registrar Cliente", description = "Cria um usuário com perfil de CLIENTE")
+    public ResponseEntity<UserResponse> registerClient(@Valid @RequestBody UserCreateRequest request) {
+        UserResponse response = userService.create(request, Role.CLIENT);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/register/owner")
+    @Operation(summary = "Registrar Dono", description = "Cria um usuário com perfil de OWNER")
+    public ResponseEntity<UserResponse> registerOwner(@Valid @RequestBody UserCreateRequest request) {
+        UserResponse response = userService.create(request, Role.RESTAURANT_OWNER);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

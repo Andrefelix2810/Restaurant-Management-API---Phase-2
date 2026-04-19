@@ -3,12 +3,13 @@ package com.restaurantsystem.restaurantmanagementapi.service;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserCreateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.response.UserResponse;
+import com.restaurantsystem.restaurantmanagementapi.enums.Role;
 
 import java.util.List;
 
 public interface UserService {
 
-    UserResponse create(UserCreateRequest request);
+    UserResponse create(UserCreateRequest request, Role role);
 
     List<UserResponse> findAll();
 

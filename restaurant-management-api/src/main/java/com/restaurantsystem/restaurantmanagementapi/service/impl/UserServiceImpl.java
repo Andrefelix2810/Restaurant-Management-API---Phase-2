@@ -4,6 +4,7 @@ import com.restaurantsystem.restaurantmanagementapi.dto.request.UserCreateReques
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.response.UserResponse;
 import com.restaurantsystem.restaurantmanagementapi.entity.User;
+import com.restaurantsystem.restaurantmanagementapi.enums.Role;
 import com.restaurantsystem.restaurantmanagementapi.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.exception.UserNotFoundException;
 import com.restaurantsystem.restaurantmanagementapi.mapper.UserMapper;
@@ -26,10 +27,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponse create(UserCreateRequest request) {
+    public UserResponse create(UserCreateRequest request, Role role) {
         validateEmailAndLoginForCreate(request);
 
         User user = userMapper.toEntity(request);
+        user.setRole(role);
         user.setLastModifiedDate(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
