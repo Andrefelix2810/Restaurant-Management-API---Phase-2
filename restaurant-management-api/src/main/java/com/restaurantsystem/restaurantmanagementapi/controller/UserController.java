@@ -1,5 +1,6 @@
 package com.restaurantsystem.restaurantmanagementapi.controller;
 
+import com.restaurantsystem.restaurantmanagementapi.dto.request.PasswordUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserCreateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.response.UserResponse;
@@ -52,10 +53,17 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualizar usuário", description = "Atualizar um determinado campo do usuário com excecao da senha")
+    @Operation(summary = "Atualizar dados do usuário", description = "Atualizar um determinado campo do usuário com excecao da senha")
     public ResponseEntity<UserResponse> update(@PathVariable Long id,
                                                @Valid @RequestBody UserUpdateRequest request) {
         return ResponseEntity.ok(userService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/password")
+    @Operation(summary = "Atualizar senha", description = "Altera a senha de um usuário específico")
+    public ResponseEntity<Void> updatePassword(@PathVariable Long id, @Valid @RequestBody PasswordUpdateRequest request) {
+        userService.updatePassword(id, request);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

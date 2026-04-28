@@ -24,9 +24,6 @@ public class UserUpdateRequest {
     @NotBlank(message = "Login is required")
     private String login;
 
-    @NotNull(message = "Role is required")
-    private Role role;
-
     @Valid
     @NotNull(message = "Address is required")
     private AddressRequest address;
