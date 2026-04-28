@@ -1,5 +1,7 @@
 package com.restaurantsystem.restaurantmanagementapi.service.impl;
 
+import com.restaurantsystem.restaurantmanagementapi.dto.request.LoginRequest;
+import com.restaurantsystem.restaurantmanagementapi.dto.request.PasswordUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserCreateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.request.UserUpdateRequest;
 import com.restaurantsystem.restaurantmanagementapi.dto.response.UserResponse;
@@ -10,6 +12,7 @@ import com.restaurantsystem.restaurantmanagementapi.exception.UserNotFoundExcept
 import com.restaurantsystem.restaurantmanagementapi.mapper.UserMapper;
 import com.restaurantsystem.restaurantmanagementapi.repository.UserRepository;
 import com.restaurantsystem.restaurantmanagementapi.service.UserService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -64,12 +67,33 @@ public class UserServiceImpl implements UserService {
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setLogin(request.getLogin());
-        user.setRole(request.getRole());
         user.setAddress(userMapper.toAddressEntity(request.getAddress()));
         user.setLastModifiedDate(LocalDateTime.now());
 
         User updatedUser = userRepository.save(user);
         return userMapper.toResponse(updatedUser);
+    }
+
+    @Override
+    @Transactional
+    public void updatePassword(Long id, PasswordUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        user.setPassword(request.newPassword());
+        user.setLastModifiedDate(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    @Override
+    public UserResponse login(LoginRequest request) {
+        User user = userRepository.findByLogin(request.login())
+                .orElseThrow(() -> new BusinessException("Usuário ou senha inválidos"));
+
+        if (!user.getPassword().equals(request.password())) {
+            throw new BusinessException("Credenciais inválidas");
+        }
+        return userMapper.toResponse(user);
     }
 
     @Override

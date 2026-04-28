@@ -17,7 +17,7 @@ public class OpenApiConfig {
                         .version("1.0")
                         .description("API para gestão de restaurantes e usuários.")
                         .contact(new Contact()
-                                .name("L")
+                                .name("André Félix e Ygor")
                                 .email("seu-email@exemplo.com")));
     }
 }
