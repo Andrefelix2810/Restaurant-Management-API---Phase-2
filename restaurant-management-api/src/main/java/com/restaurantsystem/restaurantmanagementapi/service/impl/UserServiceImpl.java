@@ -80,6 +80,14 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
+        if (!user.getPassword().equals(request.oldPassword())) {
+            throw new BusinessException("A senha antiga informada está incorreta");
+        }
+
+        if (user.getPassword().equals(request.newPassword())) {
+            throw new BusinessException("A nova senha não pode ser igual à senha atual");
+        }
+
         user.setPassword(request.newPassword());
         user.setLastModifiedDate(LocalDateTime.now());
         userRepository.save(user);
