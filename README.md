@@ -1,45 +1,70 @@
 # Restaurant Management API
 
-Backend desenvolvido com Spring Boot para gerenciamento de usuários de um sistema compartilhado de restaurantes.
+API REST em Spring Boot para gestão de usuários e operações de restaurantes, desenvolvida para o **Tech Challenge - Fase 1** e evoluída com entidades de operação (restaurantes, mesas, cardápio e pedidos).
 
----
+## 1. Contexto do Tech Challenge (PDF)
 
-## Objetivo da Fase 1
+Conforme o documento **"Postech - ADJ - Fase 1 - Tech Challenge"**, o foco principal da Fase 1 é:
 
-Entregar um backend robusto para gerenciamento de usuários, com foco em:
+- backend robusto em Spring Boot
+- gerenciamento de usuários
+- execução com Docker Compose
+- persistência em banco relacional
+- documentação e organização do projeto
 
-- cadastro de usuário
-- atualização de usuário
-- exclusão de usuário
-- busca de usuários
-- validação de dados
-- persistência em banco relacional PostgreSQL
-- execução com Docker e Docker Compose
+## 2. Aderência ao que o PDF pediu
 
----
+### 2.1 Requisitos funcionais da Fase 1 (usuários)
 
-## Tecnologias Utilizadas
+| Item solicitado no PDF | Status atual |
+|---|---|
+| Cadastro de usuário | Implementado |
+| Alteração de usuário | Implementado |
+| Exclusão de usuário | Implementado |
+| Campos de usuário (nome, email, login, senha, data última alteração, endereço) | Implementado |
+| Validação de login | **Pendente** (não há endpoint dedicado de autenticação/login neste estado) |
+| Troca de senha | **Pendente** (não há endpoint dedicado de troca de senha neste estado) |
+
+### 2.2 Entregáveis gerais da Fase 1
+
+| Entregável do PDF | Status atual |
+|---|---|
+| Funcionalidade de backend | Atendido para usuários + módulos de operação |
+| Qualidade/organização de código | Estrutura em camadas implementada |
+| Documentação do projeto | Este README + Swagger |
+| Collection de testes | Arquivo disponível em `restaurant-management-api/postman/Restaurant-API-Local.postman_collection.json` |
+| Docker Compose (app + banco) | Implementado |
+| Repositório de código | Aplicável ao repositório atual |
+
+## 3. Escopo implementado hoje (estado atual real da API)
+
+Além do escopo de usuário da Fase 1, o projeto já possui módulos da operação:
+
+- `Restaurant` (CRUD)
+- `Table` por restaurante (criação, listagem, alteração de status)
+- `MenuItem` por restaurante (CRUD)
+- `Order` por restaurante/mesa (abertura e consulta)
+- tratamento global de exceções com payload padronizado
+- documentação OpenAPI/Swagger ativa
+
+## 4. Tecnologias
 
 - Java 17
-- Spring Boot
+- Spring Boot 4.0.5
 - Spring Web MVC
 - Spring Data JPA
+- Bean Validation
 - PostgreSQL
-- Maven
-- Docker
-- Docker Compose
 - Lombok
+- springdoc-openapi (Swagger UI)
+- Maven
+- Docker / Docker Compose
 
----
+## 5. Arquitetura
 
-## Arquitetura do Projeto
-
-O projeto foi organizado em camadas, seguindo boas práticas de separação de responsabilidades e princípios SOLID.
-
-### Estrutura de pacotes
-
-~~~text
+```text
 src/main/java/com/restaurantsystem/restaurantmanagementapi
+├── config
 ├── controller
 ├── dto
 │   ├── request
@@ -52,46 +77,124 @@ src/main/java/com/restaurantsystem/restaurantmanagementapi
 ├── service
 │   └── impl
 └── RestaurantManagementApiApplication.java
-~~~
+```
 
----
+## 6. Regras de negócio já aplicadas
 
-## Funcionalidades Implementadas
+- impede duplicidade de `email` e `login` em usuário
+- impede número de mesa duplicado no mesmo restaurante
+- impede vincular mesa/item/pedido a restaurante diferente
+- valida preço de item (`> 0`)
+- status válidos de mesa: `AVAILABLE`, `OCCUPIED`, `RESERVED`, `CLEANING`
+- status inicial do pedido: `OPEN`
 
-- Criar usuário
-- Listar usuários
-- Buscar usuário por ID
-- Atualizar usuário
-- Deletar usuário
-- Validar campos obrigatórios
-- Tratar usuário não encontrado
-- Impedir duplicidade de email
-- Impedir duplicidade de login
+## 7. Como executar
 
----
+## Opção A - Local
 
-## Tipos de Usuário
+Pré-requisitos:
 
-- `CLIENT`
-- `RESTAURANT_OWNER`
+- Java 17
+- Maven
+- PostgreSQL disponível
 
----
+Passos:
 
-## Endpoints da API
+1. Criar o banco `restaurant_db`.
+2. Ajustar credenciais no `application.properties` ou variáveis de ambiente.
+3. Executar:
 
-| Método | Endpoint      | Descrição             |
-|--------|---------------|-----------------------|
-| POST   | `/users`      | Criar usuário         |
-| GET    | `/users`      | Listar usuários       |
-| GET    | `/users/{id}` | Buscar usuário por ID |
-| PUT    | `/users/{id}` | Atualizar usuário     |
-| DELETE | `/users/{id}` | Deletar usuário       |
+```bash
+mvn spring-boot:run
+```
 
----
+## Opção B - Docker Compose
 
-## Exemplo de Requisição para Criar Usuário
+```bash
+docker compose up --build
+```
 
-~~~json
+Serviços:
+
+- API: `http://localhost:8080`
+- PostgreSQL: `localhost:5432`
+
+## 8. Configuração de banco (atual)
+
+Arquivo `src/main/resources/application.properties`:
+
+```properties
+spring.application.name=restaurant-management-api
+server.port=8080
+
+spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/restaurant_db}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME:postgres}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:postgres}
+
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+spring.jpa.show-sql=${SPRING_JPA_SHOW_SQL:true}
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+```
+
+## 9. Healthcheck e documentação
+
+- Healthcheck: `GET /health`
+- OpenAPI JSON: `GET /v3/api-docs`
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+
+## 10. Endpoints disponíveis atualmente
+
+### 10.1 Users
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/users` | Criar usuário |
+| GET | `/users` | Listar usuários |
+| GET | `/users/{id}` | Buscar usuário por ID |
+| PUT | `/users/{id}` | Atualizar usuário |
+| DELETE | `/users/{id}` | Remover usuário |
+
+### 10.2 Restaurants
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/restaurants` | Criar restaurante |
+| GET | `/restaurants` | Listar restaurantes |
+| GET | `/restaurants/{id}` | Buscar restaurante por ID |
+| PUT | `/restaurants/{id}` | Atualizar restaurante |
+| DELETE | `/restaurants/{id}` | Remover restaurante |
+
+### 10.3 Tables
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/restaurants/{restaurantId}/tables` | Criar mesa |
+| GET | `/restaurants/{restaurantId}/tables` | Listar mesas por restaurante |
+| PATCH | `/restaurants/{restaurantId}/tables/{tableId}/status` | Alterar status da mesa |
+
+### 10.4 Menu Items
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/restaurants/{restaurantId}/menu-items` | Criar item |
+| GET | `/restaurants/{restaurantId}/menu-items` | Listar itens |
+| PUT | `/restaurants/{restaurantId}/menu-items/{menuItemId}` | Atualizar item |
+| DELETE | `/restaurants/{restaurantId}/menu-items/{menuItemId}` | Remover item |
+
+### 10.5 Orders
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/restaurants/{restaurantId}/orders` | Abrir pedido |
+| GET | `/restaurants/{restaurantId}/orders/{orderId}` | Consultar pedido |
+| GET | `/restaurants/{restaurantId}/orders/table/{tableId}` | Listar pedidos por mesa |
+
+## 11. Exemplos rápidos de payload
+
+### Criar usuário
+
+```json
 {
   "name": "Roberto Almeida",
   "email": "roberto.almeida@email.com",
@@ -108,79 +211,75 @@ src/main/java/com/restaurantsystem/restaurantmanagementapi
     "complement": "Torre 3"
   }
 }
-~~~
+```
 
----
+### Criar restaurante
 
-## Configuração do Banco
+```json
+{
+  "name": "Restaurante A",
+  "description": "Matriz",
+  "phone": "11999990001"
+}
+```
 
-A aplicação está configurada para usar PostgreSQL com os seguintes parâmetros:
+### Criar mesa
 
-- **Database:** `restaurant_db`
-- **Username:** `postgres`
-- **Password:** `postgres`
-- **Porta padrão:** `5432`
+```json
+{
+  "tableNumber": 1,
+  "seats": 4,
+  "status": "AVAILABLE"
+}
+```
 
-### application.properties
+### Criar item de cardápio
 
-~~~properties
-spring.application.name=restaurant-management-api
-server.port=8080
+```json
+{
+  "name": "Burger Artesanal",
+  "description": "Pao brioche, carne 180g, queijo",
+  "price": 29.90,
+  "available": true
+}
+```
 
-spring.datasource.url=jdbc:postgresql://localhost:5432/restaurant_db
-spring.datasource.username=postgres
-spring.datasource.password=postgres
+### Abrir pedido
 
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
-~~~
+```json
+{
+  "tableId": 1,
+  "notes": "Sem cebola"
+}
+```
 
----
+## 12. Formato padronizado de erro
 
-## Como Executar Localmente
+```json
+{
+  "timestamp": "2026-03-30T23:35:32.144021202",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Restaurant with id 999 not found",
+  "path": "/restaurants/999"
+}
+```
 
-### Pré-requisitos
+## 13. Roteiro sugerido para apresentação
 
-- Java 17
-- Maven
-- PostgreSQL
+1. Mostrar `GET /health`.
+2. Mostrar Swagger (`/swagger-ui/index.html`).
+3. Criar usuário com `POST /users`.
+4. Criar restaurante com `POST /restaurants`.
+5. Criar mesa no restaurante.
+6. Criar item de cardápio.
+7. Abrir pedido e consultar por ID.
+8. Forçar erro de recurso inexistente para mostrar padrão de erro.
+9. Encerrar com tabela de aderência da Fase 1 (itens concluídos x pendentes).
 
-### Passos
+## 14. Pontos pendentes para fechamento total da Fase 1 (segundo o PDF)
 
-1. Criar o banco `restaurant_db`
-2. Configurar usuário e senha do PostgreSQL
-3. Atualizar o `application.properties`, se necessário
-4. Rodar a aplicação pela IntelliJ ou com Maven
+- endpoint de validação de login
+- endpoint de troca de senha
 
-### Executar com Maven
-
-~~~bash
-mvn spring-boot:run
-~~~
-
----
-
-## Como Executar com Docker Compose
-
-~~~bash
-docker compose up --build
-~~~
-
----
-
-## Respostas de Erro Tratadas
-
-A API possui tratamento global de exceções para:
-
-- usuário não encontrado
-- erro de validação
-- regra de negócio
-- erro de duplicidade
-
----
-
-## Status do Projeto
-
-Sprint 1 praticamente concluída, contemplando backend funcional com persistência real em PostgreSQL.
+Esses itens não impedem a demonstração do backend atual, mas devem ser adicionados para aderência completa ao texto da Fase 1.
