@@ -13,4 +13,10 @@ RUN ./mvnw clean package -DskipTests
 
 EXPOSE 8080
 
-CMD ["java", "-jar", "target/restaurant-management-api-0.0.1-SNAPSHOT.jar"]
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/restaurant_db
+ENV SPRING_DATASOURCE_USERNAME=postgres
+ENV SPRING_DATASOURCE_PASSWORD=postgres
+ENV SPRING_JPA_HIBERNATE_DDL_AUTO=update
+ENV SPRING_JPA_SHOW_SQL=true
+
+CMD ["java", "-jar", "target/restaurant-management-api-phase-2-0.0.1-SNAPSHOT.jar"]
