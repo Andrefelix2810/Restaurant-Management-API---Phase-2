@@ -11,16 +11,13 @@ public class UserTypeMapper {
 
     public UserType toEntity(UserTypeCreateRequest request) {
         UserType userType = new UserType();
-        userType.setName(request.getName());
-        userType.setDescription(request.getDescription());
+        userType.setName(normalizeName(request.getName()));
         userType.setActive(true);
         return userType;
     }
 
     public void updateEntity(UserType userType, UserTypeUpdateRequest request) {
-        userType.setName(request.getName());
-        userType.setDescription(request.getDescription());
-        userType.setActive(request.getActive());
+        userType.setName(normalizeName(request.getName()));
     }
 
     public UserTypeResponse toResponse(UserType userType) {
@@ -30,11 +27,11 @@ public class UserTypeMapper {
 
         return new UserTypeResponse(
                 userType.getId(),
-                userType.getName(),
-                userType.getDescription(),
-                userType.getActive(),
-                userType.getCreatedAt(),
-                userType.getUpdatedAt()
+                userType.getName()
         );
+    }
+
+    private String normalizeName(String name) {
+        return name == null ? null : name.trim();
     }
 }

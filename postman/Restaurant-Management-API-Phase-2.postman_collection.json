@@ -11,6 +11,10 @@
     {
       "key": "userTypeId",
       "value": "1"
+    },
+    {
+      "key": "userId",
+      "value": "1"
     }
   ],
   "item": [
@@ -22,52 +26,117 @@
       }
     },
     {
-      "name": "Create User Type",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
+      "name": "User Types",
+      "item": [
+        {
+          "name": "Create User Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CLIENTE\"\n}"
+            },
+            "url": "{{baseUrl}}/user-types"
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"CUSTOMER\",\n  \"description\": \"Restaurant customer\"\n}"
         },
-        "url": "{{baseUrl}}/user-types"
-      }
-    },
-    {
-      "name": "List User Types",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/user-types"
-      }
-    },
-    {
-      "name": "Create User",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
+        {
+          "name": "List User Types",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/user-types"
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria@email.com\",\n  \"login\": \"mariasilva\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Apto 12\"\n  }\n}"
         },
-        "url": "{{baseUrl}}/users"
-      }
+        {
+          "name": "Get User Type By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/user-types/{{userTypeId}}"
+          }
+        },
+        {
+          "name": "Update User Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DONO_RESTAURANTE\"\n}"
+            },
+            "url": "{{baseUrl}}/user-types/{{userTypeId}}"
+          }
+        },
+        {
+          "name": "Delete User Type",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/user-types/{{userTypeId}}"
+          }
+        }
+      ]
     },
     {
-      "name": "List Users",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/users"
-      }
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User With User Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria@email.com\",\n  \"login\": \"mariasilva\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Apto 12\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Update User Type Association",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria@email.com\",\n  \"login\": \"mariasilva\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Apto 12\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        }
+      ]
     }
   ]
 }

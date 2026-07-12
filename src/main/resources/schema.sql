@@ -1,2 +1,11 @@
+CREATE TABLE IF NOT EXISTS user_types (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(80) NOT NULL UNIQUE,
+    description VARCHAR(500),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type_id BIGINT;
 ALTER TABLE users DROP COLUMN IF EXISTS role;

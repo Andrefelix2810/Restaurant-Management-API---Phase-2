@@ -4,6 +4,7 @@ import com.restaurantsystem.restaurantmanagementapi.application.service.UserType
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
+import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
 import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserTypeRepository;
 import com.restaurantsystem.restaurantmanagementapi.mapper.UserTypeMapper;
 import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserTypeCreateRequest;
@@ -19,20 +20,29 @@ import java.util.List;
 public class UserTypeServiceImpl implements UserTypeService {
 
     private final UserTypeRepository userTypeRepository;
+    private final UserRepository userRepository;
     private final UserTypeMapper userTypeMapper;
 
-    public UserTypeServiceImpl(UserTypeRepository userTypeRepository, UserTypeMapper userTypeMapper) {
+    public UserTypeServiceImpl(
+            UserTypeRepository userTypeRepository,
+            UserRepository userRepository,
+            UserTypeMapper userTypeMapper
+    ) {
         this.userTypeRepository = userTypeRepository;
+        this.userRepository = userRepository;
         this.userTypeMapper = userTypeMapper;
     }
 
     @Override
     public UserTypeResponse create(UserTypeCreateRequest request) {
-        if (userTypeRepository.existsByName(request.getName())) {
+        String name = normalizeName(request.getName());
+
+        if (userTypeRepository.existsByNameIgnoreCase(name)) {
             throw new BusinessException("User type already registered");
         }
 
         UserType userType = userTypeMapper.toEntity(request);
+        userType.setName(name);
         UserType savedUserType = userTypeRepository.save(userType);
         return userTypeMapper.toResponse(savedUserType);
     }
@@ -56,12 +66,14 @@ public class UserTypeServiceImpl implements UserTypeService {
     @Override
     public UserTypeResponse update(Long id, UserTypeUpdateRequest request) {
         UserType userType = findUserType(id);
+        String name = normalizeName(request.getName());
 
-        if (!userType.getName().equals(request.getName()) && userTypeRepository.existsByName(request.getName())) {
+        if (!userType.getName().equalsIgnoreCase(name) && userTypeRepository.existsByNameIgnoreCase(name)) {
             throw new BusinessException("User type already registered");
         }
 
         userTypeMapper.updateEntity(userType, request);
+        userType.setName(name);
         UserType updatedUserType = userTypeRepository.save(userType);
         return userTypeMapper.toResponse(updatedUserType);
     }
@@ -69,12 +81,20 @@ public class UserTypeServiceImpl implements UserTypeService {
     @Override
     public void delete(Long id) {
         UserType userType = findUserType(id);
-        userType.setActive(false);
-        userTypeRepository.save(userType);
+
+        if (userRepository.existsByUserTypeId(id)) {
+            throw new BusinessException("User type is associated with users and cannot be deleted");
+        }
+
+        userTypeRepository.delete(userType);
     }
 
     private UserType findUserType(Long id) {
         return userTypeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("UserType", id));
+    }
+
+    private String normalizeName(String name) {
+        return name == null ? null : name.trim();
     }
 }

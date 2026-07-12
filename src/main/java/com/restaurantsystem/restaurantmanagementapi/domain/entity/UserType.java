@@ -9,6 +9,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,7 +28,8 @@ public class UserType {
     private Long id;
 
     @NotBlank(message = "Name is required")
-    @Column(nullable = false, unique = true)
+    @Size(min = 2, max = 80, message = "Name must have between 2 and 80 characters")
+    @Column(nullable = false, unique = true, length = 80)
     private String name;
 
     @Column(length = 500)

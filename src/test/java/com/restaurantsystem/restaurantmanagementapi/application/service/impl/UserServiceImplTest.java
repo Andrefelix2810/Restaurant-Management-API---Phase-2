@@ -4,6 +4,7 @@ import com.restaurantsystem.restaurantmanagementapi.domain.entity.Address;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.User;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
+import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
 import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
 import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserTypeRepository;
 import com.restaurantsystem.restaurantmanagementapi.mapper.AddressMapper;
@@ -88,6 +89,18 @@ class UserServiceImplTest {
 
         assertThrows(BusinessException.class, () -> userService.create(request));
         verify(userTypeRepository, never()).findById(any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUserTypeDoesNotExist() {
+        UserCreateRequest request = userRequest();
+
+        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
+        when(userRepository.existsByLogin(request.getLogin())).thenReturn(false);
+        when(userTypeRepository.findById(request.getUserTypeId())).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.create(request));
         verify(userRepository, never()).save(any(User.class));
     }
 

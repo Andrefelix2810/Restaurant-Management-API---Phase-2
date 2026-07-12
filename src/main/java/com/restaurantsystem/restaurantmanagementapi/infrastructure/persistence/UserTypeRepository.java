@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserTypeRepository extends JpaRepository<UserType, Long> {
 
-    boolean existsByName(String name);
+    boolean existsByNameIgnoreCase(String name);
 }
