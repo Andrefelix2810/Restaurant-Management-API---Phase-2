@@ -15,6 +15,10 @@
     {
       "key": "userId",
       "value": "1"
+    },
+    {
+      "key": "restaurantId",
+      "value": "1"
     }
   ],
   "item": [
@@ -29,7 +33,38 @@
       "name": "User Types",
       "item": [
         {
-          "name": "Create User Type",
+          "name": "Create User Type - Restaurant Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const response = pm.response.json();",
+                  "  pm.collectionVariables.set('userTypeId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DONO_RESTAURANTE\"\n}"
+            },
+            "url": "{{baseUrl}}/user-types"
+          }
+        },
+        {
+          "name": "Create User Type - Customer",
           "request": {
             "method": "POST",
             "header": [
@@ -89,7 +124,21 @@
       "name": "Users",
       "item": [
         {
-          "name": "Create User With User Type",
+          "name": "Create Restaurant Owner User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const response = pm.response.json();",
+                  "  pm.collectionVariables.set('userId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -100,7 +149,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria@email.com\",\n  \"login\": \"mariasilva\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Apto 12\"\n  }\n}"
+              "raw": "{\n  \"name\": \"Joao Silva\",\n  \"email\": \"joao{{$timestamp}}@email.com\",\n  \"login\": \"joao{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Sala 12\"\n  }\n}"
             },
             "url": "{{baseUrl}}/users"
           }
@@ -117,7 +166,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria@email.com\",\n  \"login\": \"mariasilva\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Apto 12\"\n  }\n}"
+              "raw": "{\n  \"name\": \"Joao Silva\",\n  \"email\": \"joao{{$timestamp}}@email.com\",\n  \"login\": \"joao{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Sala 12\"\n  }\n}"
             },
             "url": "{{baseUrl}}/users/{{userId}}"
           }
@@ -134,6 +183,80 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Restaurants",
+      "item": [
+        {
+          "name": "Create Restaurant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const response = pm.response.json();",
+                  "  pm.collectionVariables.set('restaurantId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Restaurante Sabor Brasil\",\n  \"address\": \"Rua das Flores, 123 - Sao Paulo/SP\",\n  \"cuisineType\": \"Brasileira\",\n  \"openingHours\": \"Segunda a sabado, das 11h as 23h\",\n  \"ownerId\": {{userId}}\n}"
+            },
+            "url": "{{baseUrl}}/restaurants"
+          }
+        },
+        {
+          "name": "Get All Restaurants",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/restaurants"
+          }
+        },
+        {
+          "name": "Get Restaurant By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
+          }
+        },
+        {
+          "name": "Update Restaurant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Restaurante Sabor Brasil Unidade Centro\",\n  \"address\": \"Rua das Flores, 456 - Sao Paulo/SP\",\n  \"cuisineType\": \"Brasileira\",\n  \"openingHours\": \"Todos os dias, das 11h as 23h\",\n  \"ownerId\": {{userId}}\n}"
+            },
+            "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
+          }
+        },
+        {
+          "name": "Delete Restaurant",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
           }
         }
       ]

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -42,6 +43,14 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
 
         return buildResponse(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRequestBody(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Invalid or malformed JSON request body", request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

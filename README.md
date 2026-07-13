@@ -1,6 +1,6 @@
 # Restaurant Management API - Phase 2
 
-API Spring Boot para a Fase 2 do Tech Challenge Restaurant Management. Esta sprint implementa o cadastro e gerenciamento de Tipos de Usuario e permite associar cada usuario existente a um tipo, como `CLIENTE` ou `DONO_RESTAURANTE`.
+API Spring Boot para a Fase 2 do Tech Challenge Restaurant Management. O projeto evolui a base da Sprint 1, a funcionalidade de Tipo de Usuario da Sprint 2 e, nesta Sprint 3, adiciona o Cadastro de Restaurante com dono associado a um usuario existente.
 
 ## Tecnologias
 
@@ -34,18 +34,49 @@ src/main/java/com/restaurantsystem/restaurantmanagementapi
         `-- response
 ```
 
+## Funcionalidades Implementadas
+
+- Health check da API.
+- CRUD de tipos de usuario em `/user-types`.
+- CRUD de usuarios em `/users`.
+- Associacao `User` muitos-para-um com `UserType`.
+- CRUD de restaurantes em `/restaurants`.
+- Associacao `Restaurant` muitos-para-um com `User`.
+- Validacao de que o dono do restaurante existe.
+- Validacao de que o dono do restaurante possui `UserType` com nome `DONO_RESTAURANTE`.
+- Tratamento global para validacao, entidade nao encontrada, regra de negocio e integridade de dados.
+
 ## Sprint 2 - Tipo de Usuario
 
-Funcionalidades implementadas:
+O tipo de usuario permite distinguir perfis como `CLIENTE` e `DONO_RESTAURANTE`.
 
-- CRUD REST de tipos de usuario em `/user-types`.
-- Campo obrigatorio `name`, validado como nao vazio e entre 2 e 80 caracteres.
-- Nome unico, validado sem diferenciar maiusculas de minusculas.
-- Associacao `User` muitos-para-um com `UserType`.
-- Criacao e atualizacao de usuario com `userTypeId`.
-- Resposta de usuario contendo o tipo associado em `userType`.
-- Bloqueio de exclusao de tipo de usuario quando houver usuarios associados.
-- Tratamento global para validacao, entidade nao encontrada e erros de negocio.
+Regras:
+
+- `name` e obrigatorio.
+- `name` nao pode ser vazio.
+- `name` deve ter entre 2 e 80 caracteres.
+- `name` deve ser unico sem diferenciar maiusculas de minusculas.
+- Um tipo de usuario em uso por usuarios nao pode ser removido.
+
+## Sprint 3 - Cadastro de Restaurante
+
+O cadastro de restaurante permite registrar os dados operacionais do restaurante e associar um dono.
+
+Campos:
+
+- `name`
+- `address`
+- `cuisineType`
+- `openingHours`
+- `ownerId`
+
+Regras:
+
+- Todos os campos sao obrigatorios.
+- `ownerId` deve referenciar um usuario existente.
+- O usuario dono deve possuir tipo de usuario `DONO_RESTAURANTE`.
+- Controllers retornam DTOs, nao entidades JPA.
+- A resposta do dono nao expoe senha nem dados sensiveis.
 
 ## Como Rodar com Docker
 
@@ -99,21 +130,26 @@ http://localhost:8080/swagger-ui/index.html
 
 ## Endpoints
 
-| Metodo | Endpoint           | Descricao                                 |
-|--------|--------------------|-------------------------------------------|
-| GET    | `/health`          | Health check                              |
-| POST   | `/user-types`      | Criar tipo de usuario                     |
-| GET    | `/user-types`      | Listar tipos de usuario                   |
-| GET    | `/user-types/{id}` | Buscar tipo de usuario por ID             |
-| PUT    | `/user-types/{id}` | Atualizar nome do tipo de usuario         |
-| DELETE | `/user-types/{id}` | Deletar tipo se nao estiver em uso        |
-| POST   | `/users`           | Criar usuario com `userTypeId`            |
-| GET    | `/users`           | Listar usuarios                           |
-| GET    | `/users/{id}`      | Buscar usuario por ID                     |
-| PUT    | `/users/{id}`      | Atualizar usuario, inclusive `userTypeId` |
-| DELETE | `/users/{id}`      | Deletar usuario                           |
+| Metodo | Endpoint              | Descricao                                  |
+|--------|-----------------------|--------------------------------------------|
+| GET    | `/health`             | Health check                               |
+| POST   | `/user-types`         | Criar tipo de usuario                      |
+| GET    | `/user-types`         | Listar tipos de usuario                    |
+| GET    | `/user-types/{id}`    | Buscar tipo de usuario por ID              |
+| PUT    | `/user-types/{id}`    | Atualizar nome do tipo de usuario          |
+| DELETE | `/user-types/{id}`    | Deletar tipo se nao estiver em uso         |
+| POST   | `/users`              | Criar usuario com `userTypeId`             |
+| GET    | `/users`              | Listar usuarios                            |
+| GET    | `/users/{id}`         | Buscar usuario por ID                      |
+| PUT    | `/users/{id}`         | Atualizar usuario, inclusive `userTypeId`  |
+| DELETE | `/users/{id}`         | Deletar usuario                            |
+| POST   | `/restaurants`        | Criar restaurante com `ownerId`            |
+| GET    | `/restaurants`        | Listar restaurantes                        |
+| GET    | `/restaurants/{id}`   | Buscar restaurante por ID                  |
+| PUT    | `/restaurants/{id}`   | Atualizar restaurante, inclusive `ownerId` |
+| DELETE | `/restaurants/{id}`   | Deletar restaurante                        |
 
-## Exemplos
+## Exemplos - Tipos de Usuario
 
 Criar tipo de usuario:
 
@@ -124,7 +160,7 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "CLIENTE"
+  "name": "DONO_RESTAURANTE"
 }
 ```
 
@@ -133,24 +169,13 @@ Resposta:
 ```json
 {
   "id": 1,
-  "name": "CLIENTE"
-}
-```
-
-Atualizar tipo de usuario:
-
-```http
-PUT /user-types/1
-Content-Type: application/json
-```
-
-```json
-{
   "name": "DONO_RESTAURANTE"
 }
 ```
 
-Criar usuario associado a um tipo:
+## Exemplos - Usuarios
+
+Criar usuario dono de restaurante:
 
 ```http
 POST /users
@@ -159,9 +184,9 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "Maria Silva",
-  "email": "maria@email.com",
-  "login": "mariasilva",
+  "name": "Joao Silva",
+  "email": "joao@email.com",
+  "login": "joaosilva",
   "password": "123456",
   "userTypeId": 1,
   "address": {
@@ -171,40 +196,81 @@ Content-Type: application/json
     "city": "Sao Paulo",
     "state": "SP",
     "zipCode": "01001000",
-    "complement": "Apto 12"
+    "complement": "Sala 12"
   }
 }
 ```
 
-Resposta de usuario:
+## Exemplos - Restaurantes
+
+Criar restaurante:
+
+```http
+POST /restaurants
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Restaurante Sabor Brasil",
+  "address": "Rua das Flores, 123 - Sao Paulo/SP",
+  "cuisineType": "Brasileira",
+  "openingHours": "Segunda a sabado, das 11h as 23h",
+  "ownerId": 1
+}
+```
+
+Resposta:
 
 ```json
 {
   "id": 1,
-  "name": "Maria Silva",
-  "email": "maria@email.com",
-  "login": "mariasilva",
-  "lastModifiedDate": "2026-07-12T20:00:00",
-  "userType": {
+  "name": "Restaurante Sabor Brasil",
+  "address": "Rua das Flores, 123 - Sao Paulo/SP",
+  "cuisineType": "Brasileira",
+  "openingHours": "Segunda a sabado, das 11h as 23h",
+  "owner": {
     "id": 1,
-    "name": "CLIENTE"
-  },
-  "address": {
-    "street": "Rua Central",
-    "number": "100",
-    "neighborhood": "Centro",
-    "city": "Sao Paulo",
-    "state": "SP",
-    "zipCode": "01001000",
-    "complement": "Apto 12"
+    "name": "Joao Silva",
+    "email": "joao@email.com",
+    "userType": {
+      "id": 1,
+      "name": "DONO_RESTAURANTE"
+    }
   }
 }
 ```
 
+Atualizar restaurante:
+
+```http
+PUT /restaurants/1
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Restaurante Sabor Brasil Unidade Centro",
+  "address": "Rua das Flores, 456 - Sao Paulo/SP",
+  "cuisineType": "Brasileira",
+  "openingHours": "Todos os dias, das 11h as 23h",
+  "ownerId": 1
+}
+```
+
+## Fluxo Minimo no Postman
+
+1. `POST /user-types` com `DONO_RESTAURANTE`.
+2. `POST /users` usando o `userTypeId` criado.
+3. `POST /restaurants` usando o `ownerId` do usuario criado.
+4. `GET /restaurants/{id}`.
+5. `PUT /restaurants/{id}`.
+6. `DELETE /restaurants/{id}`.
+
 ## Regras de Erro
 
-- `404 Not Found`: tipo de usuario ou usuario inexistente.
-- `400 Bad Request`: nome invalido, nome duplicado, e-mail/login duplicado ou tentativa de deletar tipo em uso.
+- `404 Not Found`: usuario, tipo de usuario ou restaurante inexistente.
+- `400 Bad Request`: campos invalidos, nome duplicado, e-mail/login duplicado, owner sem tipo `DONO_RESTAURANTE` ou tentativa de deletar tipo de usuario em uso.
 - `409 Conflict`: violacao de integridade do banco.
 
 Formato padrao:
@@ -214,19 +280,20 @@ Formato padrao:
   "timestamp": "2026-07-12T20:00:00",
   "status": 400,
   "error": "Bad Request",
-  "message": "User type already registered",
-  "path": "/user-types"
+  "message": "Restaurant owner must have user type DONO_RESTAURANTE",
+  "path": "/restaurants"
 }
 ```
 
 ## Banco de Dados
 
-O projeto usa `spring.jpa.hibernate.ddl-auto=update`. O arquivo `src/main/resources/schema.sql` complementa a inicializacao criando `user_types` quando necessario e adicionando `user_type_id` em `users`.
+O projeto usa `spring.jpa.hibernate.ddl-auto=update`. O arquivo `src/main/resources/schema.sql` complementa a inicializacao das tabelas.
 
 Modelo principal:
 
 - `user_types`: `id`, `name`
-- `users`: coluna `user_type_id` associada ao tipo de usuario
+- `users`: coluna `user_type_id`
+- `restaurants`: `id`, `name`, `address`, `cuisine_type`, `opening_hours`, `owner_id`
 
 ## Postman
 
@@ -236,12 +303,20 @@ A collection esta em:
 postman/Restaurant-Management-API-Phase-2.postman_collection.json
 ```
 
-Ela contem requests para health check, CRUD de tipos de usuario e criacao/atualizacao de usuario com `userTypeId`.
+Ela contem requests para health check, CRUD de tipos de usuario, CRUD de usuarios e CRUD de restaurantes.
 
 ## Testes
 
-Cobertura adicionada:
+Executar todos os testes:
 
-- `UserTypeServiceImplTest`: criacao, duplicidade, listagem, busca por ID, atualizacao, nao encontrado, exclusao e bloqueio de exclusao em uso.
-- `UserServiceImplTest`: criacao de usuario com `UserType` existente e erro quando `userTypeId` nao existe.
-- `UserTypeControllerTest`: endpoints principais de `/user-types` com MockMvc.
+```bash
+mvn clean test
+```
+
+Cobertura atual:
+
+- `UserTypeServiceImplTest`: regras principais de tipo de usuario.
+- `UserServiceImplTest`: criacao de usuario com tipo existente e erro quando `userTypeId` nao existe.
+- `RestaurantServiceImplTest`: CRUD de restaurante, owner inexistente e owner com tipo invalido.
+- `UserTypeControllerTest`: endpoints principais de `/user-types`.
+- `RestaurantControllerTest`: endpoints principais de `/restaurants`.
