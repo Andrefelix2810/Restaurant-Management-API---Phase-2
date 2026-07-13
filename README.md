@@ -1,6 +1,6 @@
 # Restaurant Management API - Phase 2
 
-API Spring Boot para a Fase 2 do Tech Challenge Restaurant Management. O projeto evolui a base da Sprint 1, a funcionalidade de Tipo de Usuario da Sprint 2 e, nesta Sprint 3, adiciona o Cadastro de Restaurante com dono associado a um usuario existente.
+API Spring Boot para a Fase 2 do Tech Challenge Restaurant Management. O projeto evolui a base da Sprint 1, os tipos de usuario da Sprint 2, os restaurantes da Sprint 3 e, nesta Sprint 4, adiciona os itens vendidos no cardapio de cada restaurante.
 
 ## Tecnologias
 
@@ -44,6 +44,10 @@ src/main/java/com/restaurantsystem/restaurantmanagementapi
 - Associacao `Restaurant` muitos-para-um com `User`.
 - Validacao de que o dono do restaurante existe.
 - Validacao de que o dono do restaurante possui `UserType` com nome `DONO_RESTAURANTE`.
+- CRUD de itens do cardapio em `/menu-items`.
+- Associacao `MenuItem` muitos-para-um com `Restaurant`.
+- Busca dos itens de um restaurante em `/restaurants/{restaurantId}/menu-items`.
+- Validacao de nome obrigatorio, preco positivo e restaurante obrigatorio/existente.
 - Tratamento global para validacao, entidade nao encontrada, regra de negocio e integridade de dados.
 
 ## Sprint 2 - Tipo de Usuario
@@ -77,6 +81,27 @@ Regras:
 - O usuario dono deve possuir tipo de usuario `DONO_RESTAURANTE`.
 - Controllers retornam DTOs, nao entidades JPA.
 - A resposta do dono nao expoe senha nem dados sensiveis.
+
+## Sprint 4 - Itens do Cardapio
+
+Cada item do cardapio pertence a um restaurante existente.
+
+Campos:
+
+- `name`
+- `description`
+- `price`
+- `availableOnlyInRestaurant`
+- `photoPath`
+- `restaurantId`
+
+Regras:
+
+- `name` e obrigatorio e nao pode ser vazio.
+- `price` e obrigatorio e deve ser maior que zero.
+- `restaurantId` e obrigatorio e deve referenciar um restaurante existente.
+- O caminho da foto e armazenado como texto; a API nao realiza upload de imagens.
+- A resposta apresenta apenas `id` e `name` do restaurante associado.
 
 ## Como Rodar com Docker
 
@@ -148,6 +173,12 @@ http://localhost:8080/swagger-ui/index.html
 | GET    | `/restaurants/{id}`   | Buscar restaurante por ID                  |
 | PUT    | `/restaurants/{id}`   | Atualizar restaurante, inclusive `ownerId` |
 | DELETE | `/restaurants/{id}`   | Deletar restaurante                        |
+| POST   | `/menu-items`         | Criar item para um restaurante             |
+| GET    | `/menu-items`         | Listar todos os itens                      |
+| GET    | `/menu-items/{id}`    | Buscar item por ID                         |
+| GET    | `/restaurants/{restaurantId}/menu-items` | Listar itens de um restaurante |
+| PUT    | `/menu-items/{id}`    | Atualizar item, inclusive seu restaurante  |
+| DELETE | `/menu-items/{id}`    | Deletar item                               |
 
 ## Exemplos - Tipos de Usuario
 
@@ -265,12 +296,53 @@ Content-Type: application/json
 3. `POST /restaurants` usando o `ownerId` do usuario criado.
 4. `GET /restaurants/{id}`.
 5. `PUT /restaurants/{id}`.
-6. `DELETE /restaurants/{id}`.
+6. `POST /menu-items` usando o `restaurantId` criado.
+7. `GET /restaurants/{restaurantId}/menu-items`.
+8. `PUT /menu-items/{id}`.
+9. `DELETE /menu-items/{id}`.
+10. `DELETE /restaurants/{id}`.
+
+## Exemplos - Itens do Cardapio
+
+Criar item:
+
+```http
+POST /menu-items
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Feijoada",
+  "description": "Feijoada completa com acompanhamentos",
+  "price": 39.90,
+  "availableOnlyInRestaurant": true,
+  "photoPath": "/images/feijoada.jpg",
+  "restaurantId": 1
+}
+```
+
+Resposta:
+
+```json
+{
+  "id": 1,
+  "name": "Feijoada",
+  "description": "Feijoada completa com acompanhamentos",
+  "price": 39.90,
+  "availableOnlyInRestaurant": true,
+  "photoPath": "/images/feijoada.jpg",
+  "restaurant": {
+    "id": 1,
+    "name": "Restaurante Sabor Brasil"
+  }
+}
+```
 
 ## Regras de Erro
 
-- `404 Not Found`: usuario, tipo de usuario ou restaurante inexistente.
-- `400 Bad Request`: campos invalidos, nome duplicado, e-mail/login duplicado, owner sem tipo `DONO_RESTAURANTE` ou tentativa de deletar tipo de usuario em uso.
+- `404 Not Found`: usuario, tipo de usuario, restaurante ou item do cardapio inexistente.
+- `400 Bad Request`: campos invalidos, preco nao positivo, nome duplicado, e-mail/login duplicado, owner sem tipo `DONO_RESTAURANTE` ou tentativa de deletar tipo de usuario em uso.
 - `409 Conflict`: violacao de integridade do banco.
 
 Formato padrao:
@@ -294,6 +366,7 @@ Modelo principal:
 - `user_types`: `id`, `name`
 - `users`: coluna `user_type_id`
 - `restaurants`: `id`, `name`, `address`, `cuisine_type`, `opening_hours`, `owner_id`
+- `menu_items`: `id`, `name`, `description`, `price`, `available_only_in_restaurant`, `photo_path`, `restaurant_id`
 
 ## Postman
 
@@ -303,7 +376,7 @@ A collection esta em:
 postman/Restaurant-Management-API-Phase-2.postman_collection.json
 ```
 
-Ela contem requests para health check, CRUD de tipos de usuario, CRUD de usuarios e CRUD de restaurantes.
+Ela contem requests para health check, CRUD de tipos de usuario, CRUD de usuarios, CRUD de restaurantes e CRUD de itens do cardapio, incluindo a busca por restaurante.
 
 ## Testes
 
@@ -320,3 +393,5 @@ Cobertura atual:
 - `RestaurantServiceImplTest`: CRUD de restaurante, owner inexistente e owner com tipo invalido.
 - `UserTypeControllerTest`: endpoints principais de `/user-types`.
 - `RestaurantControllerTest`: endpoints principais de `/restaurants`.
+- `MenuItemServiceImplTest`: CRUD, associacao e busca de itens por restaurante.
+- `MenuItemControllerTest`: endpoints, rota por restaurante e validacoes da Sprint 4.

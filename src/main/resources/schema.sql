@@ -34,3 +34,15 @@ ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS phone VARCHAR(255) DEFAULT '';
 ALTER TABLE restaurants ALTER COLUMN phone SET DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_restaurants_owner_id ON restaurants(owner_id);
+
+CREATE TABLE IF NOT EXISTS menu_items (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description VARCHAR(1000),
+    price NUMERIC(12, 2) NOT NULL CHECK (price > 0),
+    available_only_in_restaurant BOOLEAN NOT NULL DEFAULT FALSE,
+    photo_path VARCHAR(500),
+    restaurant_id BIGINT NOT NULL REFERENCES restaurants(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_menu_items_restaurant_id ON menu_items(restaurant_id);

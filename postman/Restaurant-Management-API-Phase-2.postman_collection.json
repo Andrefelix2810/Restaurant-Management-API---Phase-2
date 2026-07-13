@@ -19,6 +19,10 @@
     {
       "key": "restaurantId",
       "value": "1"
+    },
+    {
+      "key": "menuItemId",
+      "value": "1"
     }
   ],
   "item": [
@@ -257,6 +261,87 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu Items",
+      "item": [
+        {
+          "name": "Create Menu Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const response = pm.response.json();",
+                  "  pm.collectionVariables.set('menuItemId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Feijoada\",\n  \"description\": \"Feijoada completa com acompanhamentos\",\n  \"price\": 39.90,\n  \"availableOnlyInRestaurant\": true,\n  \"photoPath\": \"/images/feijoada.jpg\",\n  \"restaurantId\": {{restaurantId}}\n}"
+            },
+            "url": "{{baseUrl}}/menu-items"
+          }
+        },
+        {
+          "name": "Get All Menu Items",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/menu-items"
+          }
+        },
+        {
+          "name": "Get Menu Item By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/menu-items/{{menuItemId}}"
+          }
+        },
+        {
+          "name": "Get Menu Items By Restaurant",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/restaurants/{{restaurantId}}/menu-items"
+          }
+        },
+        {
+          "name": "Update Menu Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Feijoada completa\",\n  \"description\": \"Feijoada completa para duas pessoas\",\n  \"price\": 49.90,\n  \"availableOnlyInRestaurant\": false,\n  \"photoPath\": \"/images/feijoada-completa.jpg\",\n  \"restaurantId\": {{restaurantId}}\n}"
+            },
+            "url": "{{baseUrl}}/menu-items/{{menuItemId}}"
+          }
+        },
+        {
+          "name": "Delete Menu Item",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/menu-items/{{menuItemId}}"
           }
         }
       ]
