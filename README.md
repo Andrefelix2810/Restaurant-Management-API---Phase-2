@@ -1,16 +1,55 @@
 # Restaurant Management API - Phase 2
 
-API Spring Boot para a Fase 2 do Tech Challenge Restaurant Management. O projeto evolui a base da Sprint 1, os tipos de usuario da Sprint 2, os restaurantes da Sprint 3 e, nesta Sprint 4, adiciona os itens vendidos no cardapio de cada restaurante.
+![Java 17](https://img.shields.io/badge/Java-17-E76F00?logo=openjdk&logoColor=white)
+![Spring Boot 3.3](https://img.shields.io/badge/Spring_Boot-3.3-6DB33F?logo=springboot&logoColor=white)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-79_passando-success)
 
-Na Sprint 5, a entrega foi consolidada com cobertura automatizada minima de 80%, teste de integracao do fluxo principal, tratamento padronizado de erros, health checks no Docker Compose e collection Postman executavel em sequencia.
+API REST desenvolvida para centralizar o gerenciamento de usuarios, perfis de acesso, restaurantes e itens de cardapio. A aplicacao implementa o fluxo completo de cadastro e manutencao dessas entidades, aplica regras de negocio antes da persistencia e oferece contratos HTTP documentados para integracao com clientes externos.
+
+O projeto foi estruturado com Clean Architecture para separar o dominio das tecnologias de entrega e persistencia. O nucleo da aplicacao nao depende de Spring MVC, JPA ou PostgreSQL; esses componentes ficam nas camadas externas e se conectam aos casos de uso por meio de portas e adaptadores. Essa organizacao facilita testes, manutencao e substituicao de detalhes de infraestrutura.
+
+Além dos CRUDs, a solucao inclui validacao de dados, tratamento global de erros, documentacao OpenAPI, health checks, ambiente Docker Compose, collection Postman executavel, testes unitarios e de integracao, regras arquiteturais com ArchUnit e cobertura minima de 80% verificada automaticamente pelo JaCoCo.
+
+## Sumario
+
+- [Video de demonstracao](#video-de-demonstracao)
+- [Tecnologias](#tecnologias)
+- [Visao funcional](#visao-funcional)
+- [Arquitetura](#arquitetura)
+- [Funcionalidades implementadas](#funcionalidades-implementadas)
+- [Regras de negocio](#regras-de-negocio)
+- [Dados iniciais](#dados-iniciais)
+- [Execucao com Docker](#como-rodar-com-docker)
+- [Execucao local](#como-rodar-localmente)
+- [Swagger e endpoints](#swagger)
+- [Exemplos de requisicoes](#exemplos---tipos-de-usuario-reutilizaveis)
+- [Erros](#regras-de-erro)
+- [Banco de dados](#banco-de-dados)
+- [Postman](#postman)
+- [Testes](#testes)
+- [Documentacao complementar](#documentacao-complementar)
+
+## Visao funcional
+
+O modelo funcional parte de um catalogo fechado de tipos de usuario. Cada usuario referencia um desses tipos; usuarios com perfil `DONO_RESTAURANTE` podem ser associados a restaurantes, e cada restaurante pode possuir varios itens de cardapio.
+
+```mermaid
+flowchart LR
+    TYPE["Tipo de usuario<br/>CLIENTE ou DONO_RESTAURANTE"] --> USER["Usuario"]
+    USER -->|perfil de proprietario| RESTAURANT["Restaurante"]
+    RESTAURANT --> MENU["Itens do cardapio"]
+    MENU --> AVAILABILITY["Preco, disponibilidade<br/>e referencia da foto"]
+```
+
+As associacoes representam relacoes muitos-para-um: varios usuarios reutilizam um mesmo tipo, varios restaurantes podem pertencer a um proprietario e varios itens podem compor o cardapio de um restaurante. A API impede associacoes invalidas, como cadastrar um restaurante para um usuario cliente ou vincular um item a um restaurante inexistente.
 
 ## Video de demonstracao
 
 O video apresenta a aplicacao, a Clean Architecture, os CRUDs, o Swagger, o Docker Compose, os testes e a cobertura em aproximadamente cinco minutos.
 
-[Assistir ao video do Tech Challenge](output/video/tech-challenge-fase-2-demo.mp4)
-
-[Consultar roteiro e transcricao](output/video/roteiro-video.md)
+[Assistir ao video do Tech Challenge](output/video/TECH%20CHALLENGE%20-%20FASE%202.mp4)
 
 ## Tecnologias
 
@@ -114,7 +153,9 @@ O desenho segue os conceitos usados nas aulas de Clean Architecture: Entities, U
 - Respostas de erro padronizadas, sem exposicao de detalhes internos em erros inesperados.
 - Tratamento global para validacao, entidade nao encontrada, regra de negocio e integridade de dados.
 
-## Sprint 5 - Qualidade e Entrega Final
+## Qualidade, Testes e Entrega
+
+A qualidade e tratada como parte do ciclo de build, e nao como uma etapa isolada. O comando `mvn clean verify` compila a aplicacao, executa todos os niveis de teste, gera o relatorio de cobertura e interrompe o build se o limite minimo nao for atendido.
 
 - JaCoCo integrado ao ciclo Maven; `mvn verify` falha se a cobertura de linhas ficar abaixo de 80%.
 - Teste de integracao com banco H2 isolado no perfil `test`.
@@ -123,7 +164,9 @@ O desenho segue os conceitos usados nas aulas de Clean Architecture: Entities, U
 - Health checks do PostgreSQL e da aplicacao no Docker Compose.
 - Collection Postman reorganizada para funcionar no Collection Runner, incluindo limpeza em ordem segura.
 
-## Sprint 2 - Tipo de Usuario
+## Regras de Negocio
+
+### Tipos de Usuario
 
 O tipo de usuario e um catalogo fechado com exatamente duas opcoes: `CLIENTE` e `DONO_RESTAURANTE`.
 
@@ -139,7 +182,7 @@ Regras:
 - Na inicializacao com PostgreSQL, os dois registros do catalogo sao garantidos automaticamente nos ids corretos. Tipos legados com nome de dono sao consolidados em `DONO_RESTAURANTE`; os demais sao consolidados em `CLIENTE`, preservando os usuarios existentes com o menor privilegio.
 - A migracao de compatibilidade tambem normaliza campos obrigatorios de usuarios legados. E-mails antigos no formato `usuario@dominio` recebem o sufixo `.local`; outros valores invalidos recebem um e-mail tecnico unico baseado no id. As validacoes permanecem obrigatorias para novos cadastros.
 
-## Sprint 3 - Cadastro de Restaurante
+### Cadastro de Restaurantes
 
 O cadastro de restaurante permite registrar os dados operacionais do restaurante e associar um dono.
 
@@ -159,7 +202,7 @@ Regras:
 - Controllers retornam DTOs, nao entidades JPA.
 - A resposta do dono nao expoe senha nem dados sensiveis.
 
-## Sprint 4 - Itens do Cardapio
+### Itens do Cardapio
 
 Cada item do cardapio pertence a um restaurante existente.
 
@@ -559,10 +602,19 @@ Estrategia de testes:
 - `UserTypeControllerTest`: endpoints principais de `/user-types`.
 - `RestaurantControllerTest`: endpoints principais de `/restaurants`.
 - `MenuItemServiceImplTest`: CRUD, associacao e busca de itens por restaurante.
-- `MenuItemControllerTest`: endpoints, rota por restaurante e validacoes da Sprint 4.
+- `MenuItemControllerTest`: endpoints, rota por restaurante e validacoes dos itens de cardapio.
 - `DomainEntityTest`: invariantes e alteracoes controladas nas entidades puras.
 - `CleanArchitectureTest`: independencia do dominio, direcao das dependencias e isolamento da infraestrutura.
 - `GlobalExceptionHandlerTest`: status e mensagens seguras do contrato global de erros.
 - `MainFlowIntegrationTest`: fluxo real entre controllers, casos de uso, gateways, JPA e banco H2.
 
 DTOs HTTP, modelos JPA com codigo gerado pelo Lombok, configuracoes e classe de inicializacao nao entram na metrica. Entidades de dominio, casos de uso, controllers, presenters, gateways, mapeadores de persistencia e tratamento de excecoes permanecem cobertos pela regra de 80%.
+
+## Documentacao Complementar
+
+O README concentra a visao completa do projeto e o fluxo de uso. Para consultas especializadas, os guias abaixo aprofundam cada assunto sem substituir as informacoes desta pagina:
+
+- [Guia detalhado da API](docs/API.md): endpoints agrupados por recurso, payloads, regras, codigos de resposta e contrato de erros.
+- [Arquitetura](docs/ARCHITECTURE.md): camadas, direcao das dependencias, fluxo de uma requisicao e persistencia.
+- [Guia de desenvolvimento](docs/DEVELOPMENT.md): preparacao do ambiente, configuracao, testes, banco de dados e checklist de alteracoes.
+- [Collection Postman](postman/Restaurant-Management-API-Phase-2.postman_collection.json): requisicoes e validacoes automatizadas para o fluxo completo.
