@@ -1,28 +1,27 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.AddressCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.UserCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserTypePersistencePort;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.Address;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.User;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserTypeRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.AddressMapper;
-import com.restaurantsystem.restaurantmanagementapi.mapper.UserMapper;
-import com.restaurantsystem.restaurantmanagementapi.mapper.UserTypeMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.AddressRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.UserResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -32,115 +31,184 @@ import static org.mockito.Mockito.when;
 class UserServiceImplTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserPersistencePort userGateway;
 
     @Mock
-    private UserTypeRepository userTypeRepository;
+    private UserTypePersistencePort userTypeGateway;
 
-    private UserServiceImpl userService;
+    private UserServiceImpl useCase;
 
     @BeforeEach
     void setUp() {
-        UserMapper userMapper = new UserMapper(new AddressMapper(), new UserTypeMapper());
-        userService = new UserServiceImpl(userRepository, userTypeRepository, userMapper);
+        useCase = new UserServiceImpl(userGateway, userTypeGateway);
     }
 
     @Test
-    void shouldCreateUserWithExistingUserType() {
-        UserCreateRequest request = userRequest();
+    void shouldCreateUser() {
         UserType userType = userType();
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(userType));
+        when(userGateway.save(any(User.class))).thenAnswer(invocation -> withId(invocation.getArgument(0), 10L));
 
-        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
-        when(userRepository.existsByLogin(request.getLogin())).thenReturn(false);
-        when(userTypeRepository.findById(request.getUserTypeId())).thenReturn(Optional.of(userType));
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User user = invocation.getArgument(0);
-            user.setId(1L);
-            user.setUserType(userType);
-            user.setAddress(address());
-            return user;
-        });
+        User created = useCase.create(command());
 
-        UserResponse response = userService.create(request);
-
-        assertEquals(1L, response.getId());
-        assertEquals("Maria Silva", response.getName());
-        assertEquals("CUSTOMER", response.getUserType().getName());
-        verify(userRepository).save(any(User.class));
+        assertEquals(10L, created.getId());
+        assertEquals("Maria Silva", created.getName());
+        assertEquals(userType, created.getUserType());
+        verify(userGateway).save(any(User.class));
     }
 
     @Test
-    void shouldPreventDuplicatedEmail() {
-        UserCreateRequest request = userRequest();
+    void shouldRejectDuplicatedEmailOnCreate() {
+        when(userGateway.existsByEmail("maria@email.com")).thenReturn(true);
 
-        when(userRepository.existsByEmail(request.getEmail())).thenReturn(true);
+        BusinessException exception = assertThrows(BusinessException.class, () -> useCase.create(command()));
 
-        assertThrows(BusinessException.class, () -> userService.create(request));
-        verify(userTypeRepository, never()).findById(any());
-        verify(userRepository, never()).save(any(User.class));
+        assertEquals("Email already registered", exception.getMessage());
+        verify(userGateway, never()).save(any());
     }
 
     @Test
-    void shouldPreventDuplicatedLogin() {
-        UserCreateRequest request = userRequest();
+    void shouldRejectDuplicatedLoginOnCreate() {
+        when(userGateway.existsByLogin("maria")).thenReturn(true);
 
-        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
-        when(userRepository.existsByLogin(request.getLogin())).thenReturn(true);
+        BusinessException exception = assertThrows(BusinessException.class, () -> useCase.create(command()));
 
-        assertThrows(BusinessException.class, () -> userService.create(request));
-        verify(userTypeRepository, never()).findById(any());
-        verify(userRepository, never()).save(any(User.class));
+        assertEquals("Login already registered", exception.getMessage());
     }
 
     @Test
-    void shouldThrowExceptionWhenUserTypeDoesNotExist() {
-        UserCreateRequest request = userRequest();
+    void shouldRejectUnknownUserTypeOnCreate() {
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.empty());
 
-        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
-        when(userRepository.existsByLogin(request.getLogin())).thenReturn(false);
-        when(userTypeRepository.findById(request.getUserTypeId())).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> userService.create(request));
-        verify(userRepository, never()).save(any(User.class));
+        assertThrows(ResourceNotFoundException.class, () -> useCase.create(command()));
     }
 
-    private UserCreateRequest userRequest() {
-        return new UserCreateRequest(
+    @Test
+    void shouldFindAllUsers() {
+        when(userGateway.findAll()).thenReturn(List.of(user(1L), user(2L)));
+
+        List<User> result = useCase.findAll();
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void shouldFindUserById() {
+        when(userGateway.findById(1L)).thenReturn(Optional.of(user(1L)));
+
+        assertEquals(1L, useCase.findById(1L).getId());
+    }
+
+    @Test
+    void shouldRejectUnknownUserId() {
+        when(userGateway.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> useCase.findById(99L));
+    }
+
+    @Test
+    void shouldUpdateUser() {
+        User existing = user(1L);
+        when(userGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(userType()));
+        when(userGateway.save(existing)).thenReturn(existing);
+
+        User updated = useCase.update(1L, command());
+
+        assertEquals("Maria Silva", updated.getName());
+        verify(userGateway).save(existing);
+    }
+
+    @Test
+    void shouldRejectEmailUsedByAnotherUserOnUpdate() {
+        when(userGateway.findById(1L)).thenReturn(Optional.of(user(1L)));
+        when(userGateway.findByEmail("maria@email.com")).thenReturn(Optional.of(user(2L)));
+
+        assertThrows(BusinessException.class, () -> useCase.update(1L, command()));
+    }
+
+    @Test
+    void shouldRejectLoginUsedByAnotherUserOnUpdate() {
+        when(userGateway.findById(1L)).thenReturn(Optional.of(user(1L)));
+        when(userGateway.findByLogin("maria")).thenReturn(Optional.of(user(2L)));
+
+        assertThrows(BusinessException.class, () -> useCase.update(1L, command()));
+    }
+
+    @Test
+    void shouldAllowSameEmailAndLoginOnUpdate() {
+        User existing = user(1L);
+        when(userGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userGateway.findByEmail("maria@email.com")).thenReturn(Optional.of(existing));
+        when(userGateway.findByLogin("maria")).thenReturn(Optional.of(existing));
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(userType()));
+        when(userGateway.save(existing)).thenReturn(existing);
+
+        User updated = useCase.update(1L, command());
+
+        assertEquals(1L, updated.getId());
+    }
+
+    @Test
+    void shouldDeleteUser() {
+        User user = user(1L);
+        when(userGateway.findById(1L)).thenReturn(Optional.of(user));
+
+        useCase.delete(1L);
+
+        verify(userGateway).delete(user);
+    }
+
+    @Test
+    void shouldPreserveLastModifiedDateWhenRestoringUser() {
+        User restored = user(1L);
+
+        assertTrue(restored.getLastModifiedDate().isBefore(LocalDateTime.now().plusSeconds(1)));
+    }
+
+    private UserCommand command() {
+        return new UserCommand(
                 "Maria Silva",
                 "maria@email.com",
-                "mariasilva",
+                "maria",
                 "123456",
                 1L,
-                new AddressRequest(
-                        "Rua Central",
-                        "100",
-                        "Centro",
-                        "Sao Paulo",
-                        "SP",
-                        "01001000",
-                        "Apto 12"
-                )
+                new AddressCommand("Rua A", "10", "Centro", "Sao Paulo", "SP", "01000-000", null)
         );
     }
 
     private UserType userType() {
-        UserType userType = new UserType();
-        userType.setId(1L);
-        userType.setName("CUSTOMER");
-        userType.setDescription("Restaurant customer");
-        userType.setActive(true);
-        return userType;
+        LocalDateTime now = LocalDateTime.now();
+        return UserType.restore(1L, "CLIENTE", null, true, now, now);
+    }
+
+    private User user(Long id) {
+        return User.restore(
+                id,
+                "Maria Silva",
+                "maria@email.com",
+                "maria",
+                "123456",
+                LocalDateTime.now(),
+                userType(),
+                address()
+        );
+    }
+
+    private User withId(User user, Long id) {
+        return User.restore(
+                id,
+                user.getName(),
+                user.getEmail(),
+                user.getLogin(),
+                user.getPassword(),
+                user.getLastModifiedDate(),
+                user.getUserType(),
+                user.getAddress()
+        );
     }
 
     private Address address() {
-        return new Address(
-                "Rua Central",
-                "100",
-                "Centro",
-                "Sao Paulo",
-                "SP",
-                "01001000",
-                "Apto 12"
-        );
+        return new Address("Rua A", "10", "Centro", "Sao Paulo", "SP", "01000-000", null);
     }
 }

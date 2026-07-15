@@ -1,49 +1,112 @@
 package com.restaurantsystem.restaurantmanagementapi.domain.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Entity
-@Table(name = "restaurants")
 public class Restaurant {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @NotBlank(message = "Name is required")
-    @Column(nullable = false)
+    private final Long id;
     private String name;
-
-    @NotBlank(message = "Address is required")
-    @Column(nullable = false)
     private String address;
-
-    @NotBlank(message = "Cuisine type is required")
-    @Column(name = "cuisine_type", nullable = false)
     private String cuisineType;
-
-    @NotBlank(message = "Opening hours is required")
-    @Column(name = "opening_hours", nullable = false)
     private String openingHours;
-
-    @NotNull(message = "Owner is required")
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
+
+    private Restaurant(
+            Long id,
+            String name,
+            String address,
+            String cuisineType,
+            String openingHours,
+            User owner
+    ) {
+        validate(name, address, cuisineType, openingHours, owner);
+        this.id = id;
+        this.name = name.trim();
+        this.address = address.trim();
+        this.cuisineType = cuisineType.trim();
+        this.openingHours = openingHours.trim();
+        this.owner = owner;
+    }
+
+    public static Restaurant create(
+            String name,
+            String address,
+            String cuisineType,
+            String openingHours,
+            User owner
+    ) {
+        return new Restaurant(null, name, address, cuisineType, openingHours, owner);
+    }
+
+    public static Restaurant restore(
+            Long id,
+            String name,
+            String address,
+            String cuisineType,
+            String openingHours,
+            User owner
+    ) {
+        return new Restaurant(id, name, address, cuisineType, openingHours, owner);
+    }
+
+    public void update(
+            String name,
+            String address,
+            String cuisineType,
+            String openingHours,
+            User owner
+    ) {
+        validate(name, address, cuisineType, openingHours, owner);
+        this.name = name.trim();
+        this.address = address.trim();
+        this.cuisineType = cuisineType.trim();
+        this.openingHours = openingHours.trim();
+        this.owner = owner;
+    }
+
+    private static void validate(
+            String name,
+            String address,
+            String cuisineType,
+            String openingHours,
+            User owner
+    ) {
+        requireText(name, "Name is required");
+        requireText(address, "Address is required");
+        requireText(cuisineType, "Cuisine type is required");
+        requireText(openingHours, "Opening hours is required");
+        if (owner == null) {
+            throw new BusinessException("Owner is required");
+        }
+    }
+
+    private static void requireText(String value, String message) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new BusinessException(message);
+        }
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getCuisineType() {
+        return cuisineType;
+    }
+
+    public String getOpeningHours() {
+        return openingHours;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
 }

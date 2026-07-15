@@ -1,88 +1,85 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
-import com.restaurantsystem.restaurantmanagementapi.application.service.MenuItemService;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.MenuItemUseCase;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.MenuItemCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.MenuItemPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.RestaurantPersistencePort;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.MenuItem;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.Restaurant;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.MenuItemRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.RestaurantRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.MenuItemMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.MenuItemCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.MenuItemUpdateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.MenuItemResponse;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
-@Transactional
-public class MenuItemServiceImpl implements MenuItemService {
+public class MenuItemServiceImpl implements MenuItemUseCase {
 
-    private final MenuItemRepository menuItemRepository;
-    private final RestaurantRepository restaurantRepository;
-    private final MenuItemMapper menuItemMapper;
+    private final MenuItemPersistencePort menuItemGateway;
+    private final RestaurantPersistencePort restaurantGateway;
 
     public MenuItemServiceImpl(
-            MenuItemRepository menuItemRepository,
-            RestaurantRepository restaurantRepository,
-            MenuItemMapper menuItemMapper
+            MenuItemPersistencePort menuItemGateway,
+            RestaurantPersistencePort restaurantGateway
     ) {
-        this.menuItemRepository = menuItemRepository;
-        this.restaurantRepository = restaurantRepository;
-        this.menuItemMapper = menuItemMapper;
+        this.menuItemGateway = menuItemGateway;
+        this.restaurantGateway = restaurantGateway;
     }
 
     @Override
-    public MenuItemResponse create(MenuItemCreateRequest request) {
-        Restaurant restaurant = findRestaurant(request.getRestaurantId());
-        MenuItem menuItem = menuItemMapper.toEntity(request, restaurant);
-        return menuItemMapper.toResponse(menuItemRepository.save(menuItem));
+    public MenuItem create(MenuItemCommand command) {
+        Restaurant restaurant = findRestaurant(command.restaurantId());
+        MenuItem menuItem = MenuItem.create(
+                command.name(),
+                command.description(),
+                command.price(),
+                command.availableOnlyInRestaurant(),
+                command.photoPath(),
+                restaurant
+        );
+        return menuItemGateway.save(menuItem);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<MenuItemResponse> findAll() {
-        return menuItemRepository.findAll().stream()
-                .map(menuItemMapper::toResponse)
-                .toList();
+    public List<MenuItem> findAll() {
+        return menuItemGateway.findAll();
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public MenuItemResponse findById(Long id) {
-        return menuItemMapper.toResponse(findMenuItem(id));
+    public MenuItem findById(Long id) {
+        return findMenuItem(id);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<MenuItemResponse> findByRestaurantId(Long restaurantId) {
+    public List<MenuItem> findByRestaurantId(Long restaurantId) {
         findRestaurant(restaurantId);
-        return menuItemRepository.findAllByRestaurantId(restaurantId).stream()
-                .map(menuItemMapper::toResponse)
-                .toList();
+        return menuItemGateway.findAllByRestaurantId(restaurantId);
     }
 
     @Override
-    public MenuItemResponse update(Long id, MenuItemUpdateRequest request) {
+    public MenuItem update(Long id, MenuItemCommand command) {
         MenuItem menuItem = findMenuItem(id);
-        Restaurant restaurant = findRestaurant(request.getRestaurantId());
-        menuItemMapper.updateEntity(menuItem, request, restaurant);
-        return menuItemMapper.toResponse(menuItemRepository.save(menuItem));
+        Restaurant restaurant = findRestaurant(command.restaurantId());
+        menuItem.update(
+                command.name(),
+                command.description(),
+                command.price(),
+                command.availableOnlyInRestaurant(),
+                command.photoPath(),
+                restaurant
+        );
+        return menuItemGateway.save(menuItem);
     }
 
     @Override
     public void delete(Long id) {
-        menuItemRepository.delete(findMenuItem(id));
+        menuItemGateway.delete(findMenuItem(id));
     }
 
     private MenuItem findMenuItem(Long id) {
-        return menuItemRepository.findById(id)
+        return menuItemGateway.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item", id));
     }
 
     private Restaurant findRestaurant(Long id) {
-        return restaurantRepository.findById(id)
+        return restaurantGateway.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", id));
     }
 }

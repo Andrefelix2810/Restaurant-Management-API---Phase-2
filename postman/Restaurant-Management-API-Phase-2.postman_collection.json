@@ -1,8 +1,31 @@
 {
   "info": {
     "name": "Restaurant Management API - Phase 2",
+    "description": "Fluxo completo da Fase 2. A base inicia com CLIENTE no id 1, DONO_RESTAURANTE no id 2 e um usuario de cada tipo. Os ids dos tipos sao reutilizados por qualquer quantidade de usuarios. A collection localiza e reutiliza o catalogo inicial.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "let reusableUserType = false;",
+          "try {",
+          "  reusableUserType = pm.request.method === 'POST' && pm.request.url.toString().endsWith('/user-types') && pm.response.code === 400 && pm.response.json().message.includes('already registered');",
+          "} catch (error) {}",
+          "pm.test('Status code is successful or an existing user type will be reused', function () {",
+          "  pm.expect([200, 201, 204].includes(pm.response.code) || reusableUserType).to.be.true;",
+          "});",
+          "if (pm.response.code !== 204) {",
+          "  pm.test('Response is JSON', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
   "variable": [
     {
       "key": "baseUrl",
@@ -10,10 +33,18 @@
     },
     {
       "key": "userTypeId",
+      "value": "2"
+    },
+    {
+      "key": "customerUserTypeId",
       "value": "1"
     },
     {
       "key": "userId",
+      "value": "2"
+    },
+    {
+      "key": "customerUserId",
       "value": "1"
     },
     {
@@ -47,6 +78,13 @@
                   "if (pm.response.code === 201) {",
                   "  const response = pm.response.json();",
                   "  pm.collectionVariables.set('userTypeId', response.id);",
+                  "} else if (pm.response.code === 400) {",
+                  "  pm.sendRequest(pm.collectionVariables.get('baseUrl') + '/user-types', function (error, response) {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    const userType = response.json().find(item => item.name === 'DONO_RESTAURANTE');",
+                  "    pm.expect(userType, 'DONO_RESTAURANTE must exist').to.exist;",
+                  "    pm.collectionVariables.set('userTypeId', userType.id);",
+                  "  });",
                   "}"
                 ]
               }
@@ -69,6 +107,27 @@
         },
         {
           "name": "Create User Type - Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const response = pm.response.json();",
+                  "  pm.collectionVariables.set('customerUserTypeId', response.id);",
+                  "} else if (pm.response.code === 400) {",
+                  "  pm.sendRequest(pm.collectionVariables.get('baseUrl') + '/user-types', function (error, response) {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    const userType = response.json().find(item => item.name === 'CLIENTE');",
+                  "    pm.expect(userType, 'CLIENTE must exist').to.exist;",
+                  "    pm.collectionVariables.set('customerUserTypeId', userType.id);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -114,13 +173,6 @@
             },
             "url": "{{baseUrl}}/user-types/{{userTypeId}}"
           }
-        },
-        {
-          "name": "Delete User Type",
-          "request": {
-            "method": "DELETE",
-            "url": "{{baseUrl}}/user-types/{{userTypeId}}"
-          }
         }
       ]
     },
@@ -154,6 +206,38 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Joao Silva\",\n  \"email\": \"joao{{$timestamp}}@email.com\",\n  \"login\": \"joao{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{userTypeId}},\n  \"address\": {\n    \"street\": \"Rua Central\",\n    \"number\": \"100\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\",\n    \"complement\": \"Sala 12\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Create Customer User Reusing User Type",
+          "description": "Demonstra que o mesmo id de CLIENTE pode ser reutilizado no cadastro de qualquer quantidade de usuarios.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const response = pm.response.json();",
+                  "  pm.collectionVariables.set('customerUserId', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Cliente\",\n  \"email\": \"maria{{$timestamp}}@email.com\",\n  \"login\": \"maria{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"userTypeId\": {{customerUserTypeId}},\n  \"address\": {\n    \"street\": \"Rua do Cliente\",\n    \"number\": \"200\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"Sao Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001000\"\n  }\n}"
             },
             "url": "{{baseUrl}}/users"
           }
@@ -255,13 +339,6 @@
             },
             "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
           }
-        },
-        {
-          "name": "Delete Restaurant",
-          "request": {
-            "method": "DELETE",
-            "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
-          }
         }
       ]
     },
@@ -342,6 +419,33 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/menu-items/{{menuItemId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "description": "Remove os usuarios, restaurante e itens criados. Os tipos CLIENTE e DONO_RESTAURANTE permanecem porque sao um catalogo reutilizavel.",
+      "item": [
+        {
+          "name": "Delete Restaurant",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/restaurants/{{restaurantId}}"
+          }
+        },
+        {
+          "name": "Delete Restaurant Owner User",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Delete Customer User",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/users/{{customerUserId}}"
           }
         }
       ]

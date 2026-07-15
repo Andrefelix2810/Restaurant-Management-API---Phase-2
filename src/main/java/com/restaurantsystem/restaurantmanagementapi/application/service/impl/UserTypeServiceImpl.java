@@ -1,100 +1,75 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
-import com.restaurantsystem.restaurantmanagementapi.application.service.UserTypeService;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.UserTypeUseCase;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.UserTypeCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserTypePersistencePort;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserTypeRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.UserTypeMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserTypeCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserTypeUpdateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.UserTypeResponse;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
-@Transactional
-public class UserTypeServiceImpl implements UserTypeService {
+public class UserTypeServiceImpl implements UserTypeUseCase {
 
-    private final UserTypeRepository userTypeRepository;
-    private final UserRepository userRepository;
-    private final UserTypeMapper userTypeMapper;
+    private final UserTypePersistencePort userTypeGateway;
+    private final UserPersistencePort userGateway;
 
-    public UserTypeServiceImpl(
-            UserTypeRepository userTypeRepository,
-            UserRepository userRepository,
-            UserTypeMapper userTypeMapper
-    ) {
-        this.userTypeRepository = userTypeRepository;
-        this.userRepository = userRepository;
-        this.userTypeMapper = userTypeMapper;
+    public UserTypeServiceImpl(UserTypePersistencePort userTypeGateway, UserPersistencePort userGateway) {
+        this.userTypeGateway = userTypeGateway;
+        this.userGateway = userGateway;
     }
 
     @Override
-    public UserTypeResponse create(UserTypeCreateRequest request) {
-        String name = normalizeName(request.getName());
+    public UserType create(UserTypeCommand command) {
+        UserType userType = UserType.create(command.name());
+        if (userTypeGateway.existsByNameIgnoreCase(userType.getName())) {
+            throw new BusinessException(
+                    "User type already registered. Reuse its id when creating users"
+            );
+        }
+        return userTypeGateway.save(userType);
+    }
 
-        if (userTypeRepository.existsByNameIgnoreCase(name)) {
+    @Override
+    public List<UserType> findAll() {
+        return userTypeGateway.findAll();
+    }
+
+    @Override
+    public UserType findById(Long id) {
+        return findUserType(id);
+    }
+
+    @Override
+    public UserType update(Long id, UserTypeCommand command) {
+        UserType userType = findUserType(id);
+        String previousName = userType.getName();
+        userType.rename(command.name());
+        boolean nameChanged = !previousName.equalsIgnoreCase(userType.getName());
+
+        if (nameChanged && userTypeGateway.existsByNameIgnoreCase(userType.getName())) {
             throw new BusinessException("User type already registered");
         }
-
-        UserType userType = userTypeMapper.toEntity(request);
-        userType.setName(name);
-        UserType savedUserType = userTypeRepository.save(userType);
-        return userTypeMapper.toResponse(savedUserType);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<UserTypeResponse> findAll() {
-        return userTypeRepository.findAll()
-                .stream()
-                .map(userTypeMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UserTypeResponse findById(Long id) {
-        UserType userType = findUserType(id);
-        return userTypeMapper.toResponse(userType);
-    }
-
-    @Override
-    public UserTypeResponse update(Long id, UserTypeUpdateRequest request) {
-        UserType userType = findUserType(id);
-        String name = normalizeName(request.getName());
-
-        if (!userType.getName().equalsIgnoreCase(name) && userTypeRepository.existsByNameIgnoreCase(name)) {
-            throw new BusinessException("User type already registered");
+        if (nameChanged && userGateway.existsByUserTypeId(id)) {
+            throw new BusinessException(
+                    "User type is associated with users and cannot be changed. Update the userTypeId of the user instead"
+            );
         }
-
-        userTypeMapper.updateEntity(userType, request);
-        userType.setName(name);
-        UserType updatedUserType = userTypeRepository.save(userType);
-        return userTypeMapper.toResponse(updatedUserType);
+        return userTypeGateway.save(userType);
     }
 
     @Override
     public void delete(Long id) {
         UserType userType = findUserType(id);
-
-        if (userRepository.existsByUserTypeId(id)) {
+        if (userGateway.existsByUserTypeId(id)) {
             throw new BusinessException("User type is associated with users and cannot be deleted");
         }
-
-        userTypeRepository.delete(userType);
+        userTypeGateway.delete(userType);
     }
 
     private UserType findUserType(Long id) {
-        return userTypeRepository.findById(id)
+        return userTypeGateway.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("UserType", id));
-    }
-
-    private String normalizeName(String name) {
-        return name == null ? null : name.trim();
     }
 }

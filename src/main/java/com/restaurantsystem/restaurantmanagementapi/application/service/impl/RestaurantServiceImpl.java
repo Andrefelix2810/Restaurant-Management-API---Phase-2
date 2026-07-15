@@ -1,92 +1,81 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
-import com.restaurantsystem.restaurantmanagementapi.application.service.RestaurantService;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.RestaurantUseCase;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.RestaurantCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.RestaurantPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserPersistencePort;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.Restaurant;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.User;
+import com.restaurantsystem.restaurantmanagementapi.domain.enums.UserTypeName;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.RestaurantRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.RestaurantMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.RestaurantCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.RestaurantUpdateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.RestaurantResponse;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
-@Transactional
-public class RestaurantServiceImpl implements RestaurantService {
+public class RestaurantServiceImpl implements RestaurantUseCase {
 
-    private static final String RESTAURANT_OWNER_TYPE = "DONO_RESTAURANTE";
+    private static final String RESTAURANT_OWNER_TYPE = UserTypeName.DONO_RESTAURANTE.name();
 
-    private final RestaurantRepository restaurantRepository;
-    private final UserRepository userRepository;
-    private final RestaurantMapper restaurantMapper;
+    private final RestaurantPersistencePort restaurantGateway;
+    private final UserPersistencePort userGateway;
 
-    public RestaurantServiceImpl(
-            RestaurantRepository restaurantRepository,
-            UserRepository userRepository,
-            RestaurantMapper restaurantMapper
-    ) {
-        this.restaurantRepository = restaurantRepository;
-        this.userRepository = userRepository;
-        this.restaurantMapper = restaurantMapper;
+    public RestaurantServiceImpl(RestaurantPersistencePort restaurantGateway, UserPersistencePort userGateway) {
+        this.restaurantGateway = restaurantGateway;
+        this.userGateway = userGateway;
     }
 
     @Override
-    public RestaurantResponse create(RestaurantCreateRequest request) {
-        User owner = findOwner(request.getOwnerId());
+    public Restaurant create(RestaurantCommand command) {
+        User owner = findOwner(command.ownerId());
         validateOwnerType(owner);
-
-        Restaurant restaurant = restaurantMapper.toEntity(request, owner);
-        Restaurant savedRestaurant = restaurantRepository.save(restaurant);
-        return restaurantMapper.toResponse(savedRestaurant);
+        Restaurant restaurant = Restaurant.create(
+                command.name(),
+                command.address(),
+                command.cuisineType(),
+                command.openingHours(),
+                owner
+        );
+        return restaurantGateway.save(restaurant);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<RestaurantResponse> findAll() {
-        return restaurantRepository.findAll()
-                .stream()
-                .map(restaurantMapper::toResponse)
-                .toList();
+    public List<Restaurant> findAll() {
+        return restaurantGateway.findAll();
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public RestaurantResponse findById(Long id) {
+    public Restaurant findById(Long id) {
+        return findRestaurant(id);
+    }
+
+    @Override
+    public Restaurant update(Long id, RestaurantCommand command) {
         Restaurant restaurant = findRestaurant(id);
-        return restaurantMapper.toResponse(restaurant);
-    }
-
-    @Override
-    public RestaurantResponse update(Long id, RestaurantUpdateRequest request) {
-        Restaurant restaurant = findRestaurant(id);
-        User owner = findOwner(request.getOwnerId());
+        User owner = findOwner(command.ownerId());
         validateOwnerType(owner);
-
-        restaurantMapper.updateEntity(restaurant, request, owner);
-        Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
-        return restaurantMapper.toResponse(updatedRestaurant);
+        restaurant.update(
+                command.name(),
+                command.address(),
+                command.cuisineType(),
+                command.openingHours(),
+                owner
+        );
+        return restaurantGateway.save(restaurant);
     }
 
     @Override
     public void delete(Long id) {
-        Restaurant restaurant = findRestaurant(id);
-        restaurantRepository.delete(restaurant);
+        restaurantGateway.delete(findRestaurant(id));
     }
 
     private Restaurant findRestaurant(Long id) {
-        return restaurantRepository.findById(id)
+        return restaurantGateway.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", id));
     }
 
-    private User findOwner(Long ownerId) {
-        return userRepository.findById(ownerId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", ownerId));
+    private User findOwner(Long id) {
+        return userGateway.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }
 
     private void validateOwnerType(User owner) {

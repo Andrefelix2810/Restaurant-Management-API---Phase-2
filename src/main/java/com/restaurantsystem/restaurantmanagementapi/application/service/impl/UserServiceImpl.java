@@ -1,117 +1,119 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
-import com.restaurantsystem.restaurantmanagementapi.application.service.UserService;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.UserUseCase;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.AddressCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.UserCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserTypePersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.domain.entity.Address;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.User;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserTypeRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.UserMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserUpdateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.UserResponse;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
-@Transactional
-public class UserServiceImpl implements UserService {
+public class UserServiceImpl implements UserUseCase {
 
-    private final UserRepository userRepository;
-    private final UserTypeRepository userTypeRepository;
-    private final UserMapper userMapper;
+    private final UserPersistencePort userGateway;
+    private final UserTypePersistencePort userTypeGateway;
 
-    public UserServiceImpl(
-            UserRepository userRepository,
-            UserTypeRepository userTypeRepository,
-            UserMapper userMapper
-    ) {
-        this.userRepository = userRepository;
-        this.userTypeRepository = userTypeRepository;
-        this.userMapper = userMapper;
+    public UserServiceImpl(UserPersistencePort userGateway, UserTypePersistencePort userTypeGateway) {
+        this.userGateway = userGateway;
+        this.userTypeGateway = userTypeGateway;
     }
 
     @Override
-    public UserResponse create(UserCreateRequest request) {
-        validateEmailAndLoginForCreate(request);
-
-        UserType userType = findUserType(request.getUserTypeId());
-        User user = userMapper.toEntity(request);
-        user.setUserType(userType);
-
-        User savedUser = userRepository.save(user);
-        return userMapper.toResponse(savedUser);
+    public User create(UserCommand command) {
+        validateEmailAndLoginForCreate(command);
+        UserType userType = findUserType(command.userTypeId());
+        User user = User.create(
+                command.name(),
+                command.email(),
+                command.login(),
+                command.password(),
+                userType,
+                toAddress(command.address())
+        );
+        return userGateway.save(user);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<UserResponse> findAll() {
-        return userRepository.findAll()
-                .stream()
-                .map(userMapper::toResponse)
-                .toList();
+    public List<User> findAll() {
+        return userGateway.findAll();
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public UserResponse findById(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", id));
-
-        return userMapper.toResponse(user);
+    public User findById(Long id) {
+        return findUser(id);
     }
 
     @Override
-    public UserResponse update(Long id, UserUpdateRequest request) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", id));
-
-        validateEmailAndLoginForUpdate(id, request);
-
-        UserType userType = findUserType(request.getUserTypeId());
-        userMapper.updateEntity(user, request, userType);
-
-        User updatedUser = userRepository.save(user);
-        return userMapper.toResponse(updatedUser);
+    public User update(Long id, UserCommand command) {
+        User user = findUser(id);
+        validateEmailAndLoginForUpdate(id, command);
+        UserType userType = findUserType(command.userTypeId());
+        user.update(
+                command.name(),
+                command.email(),
+                command.login(),
+                command.password(),
+                userType,
+                toAddress(command.address())
+        );
+        return userGateway.save(user);
     }
 
     @Override
     public void delete(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", id));
-
-        userRepository.delete(user);
+        userGateway.delete(findUser(id));
     }
 
-    private void validateEmailAndLoginForCreate(UserCreateRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+    private User findUser(Long id) {
+        return userGateway.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", id));
+    }
+
+    private void validateEmailAndLoginForCreate(UserCommand command) {
+        if (userGateway.existsByEmail(command.email())) {
             throw new BusinessException("Email already registered");
         }
-
-        if (userRepository.existsByLogin(request.getLogin())) {
+        if (userGateway.existsByLogin(command.login())) {
             throw new BusinessException("Login already registered");
         }
     }
 
-    private void validateEmailAndLoginForUpdate(Long id, UserUpdateRequest request) {
-        userRepository.findByEmail(request.getEmail())
+    private void validateEmailAndLoginForUpdate(Long id, UserCommand command) {
+        userGateway.findByEmail(command.email())
                 .filter(foundUser -> !foundUser.getId().equals(id))
                 .ifPresent(foundUser -> {
                     throw new BusinessException("Email already registered");
                 });
 
-        userRepository.findByLogin(request.getLogin())
+        userGateway.findByLogin(command.login())
                 .filter(foundUser -> !foundUser.getId().equals(id))
                 .ifPresent(foundUser -> {
                     throw new BusinessException("Login already registered");
                 });
     }
 
-    private UserType findUserType(Long userTypeId) {
-        return userTypeRepository.findById(userTypeId)
-                .orElseThrow(() -> new ResourceNotFoundException("UserType", userTypeId));
+    private UserType findUserType(Long id) {
+        return userTypeGateway.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("UserType", id));
+    }
+
+    private Address toAddress(AddressCommand address) {
+        if (address == null) {
+            return null;
+        }
+        return new Address(
+                address.street(),
+                address.number(),
+                address.neighborhood(),
+                address.city(),
+                address.state(),
+                address.zipCode(),
+                address.complement()
+        );
     }
 }

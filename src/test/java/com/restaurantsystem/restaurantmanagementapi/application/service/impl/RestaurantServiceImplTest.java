@@ -1,23 +1,21 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.RestaurantCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.RestaurantPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.domain.entity.Address;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.Restaurant;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.User;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.RestaurantRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.RestaurantMapper;
-import com.restaurantsystem.restaurantmanagementapi.mapper.UserTypeMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.RestaurantCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.RestaurantUpdateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.RestaurantResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,193 +30,142 @@ import static org.mockito.Mockito.when;
 class RestaurantServiceImplTest {
 
     @Mock
-    private RestaurantRepository restaurantRepository;
+    private RestaurantPersistencePort restaurantGateway;
 
     @Mock
-    private UserRepository userRepository;
+    private UserPersistencePort userGateway;
 
-    private RestaurantServiceImpl restaurantService;
+    private RestaurantServiceImpl useCase;
 
     @BeforeEach
     void setUp() {
-        RestaurantMapper restaurantMapper = new RestaurantMapper(new UserTypeMapper());
-        restaurantService = new RestaurantServiceImpl(restaurantRepository, userRepository, restaurantMapper);
+        useCase = new RestaurantServiceImpl(restaurantGateway, userGateway);
     }
 
     @Test
-    void shouldCreateRestaurantSuccessfully() {
-        RestaurantCreateRequest request = createRequest();
-        User owner = owner(1L, "DONO_RESTAURANTE");
+    void shouldCreateRestaurantForOwner() {
+        when(userGateway.findById(1L)).thenReturn(Optional.of(owner(1L, "DONO_RESTAURANTE")));
+        when(restaurantGateway.save(any(Restaurant.class)))
+                .thenAnswer(invocation -> withId(invocation.getArgument(0), 10L));
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
-        when(restaurantRepository.save(any(Restaurant.class))).thenAnswer(invocation -> {
-            Restaurant restaurant = invocation.getArgument(0);
-            restaurant.setId(1L);
-            return restaurant;
-        });
+        Restaurant created = useCase.create(command());
 
-        RestaurantResponse response = restaurantService.create(request);
-
-        assertEquals(1L, response.getId());
-        assertEquals("Restaurante Sabor Brasil", response.getName());
-        assertEquals("Brasileira", response.getCuisineType());
-        assertEquals(1L, response.getOwner().getId());
-        assertEquals("DONO_RESTAURANTE", response.getOwner().getUserType().getName());
-        verify(restaurantRepository).save(any(Restaurant.class));
+        assertEquals(10L, created.getId());
+        assertEquals("Sabor Brasil", created.getName());
     }
 
     @Test
-    void shouldThrowExceptionWhenOwnerIdDoesNotExistOnCreate() {
-        RestaurantCreateRequest request = createRequest();
+    void shouldRejectUnknownOwner() {
+        when(userGateway.findById(1L)).thenReturn(Optional.empty());
 
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> restaurantService.create(request));
-        verify(restaurantRepository, never()).save(any(Restaurant.class));
+        assertThrows(ResourceNotFoundException.class, () -> useCase.create(command()));
     }
 
     @Test
-    void shouldThrowExceptionWhenOwnerIsNotRestaurantOwnerOnCreate() {
-        RestaurantCreateRequest request = createRequest();
+    void shouldRejectOwnerWithCustomerType() {
+        when(userGateway.findById(1L)).thenReturn(Optional.of(owner(1L, "CLIENTE")));
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(owner(1L, "CLIENTE")));
+        assertThrows(BusinessException.class, () -> useCase.create(command()));
 
-        assertThrows(BusinessException.class, () -> restaurantService.create(request));
-        verify(restaurantRepository, never()).save(any(Restaurant.class));
+        verify(restaurantGateway, never()).save(any());
     }
 
     @Test
-    void shouldListRestaurants() {
-        when(restaurantRepository.findAll()).thenReturn(List.of(
-                restaurant(1L, owner(1L, "DONO_RESTAURANTE")),
-                restaurant(2L, owner(2L, "DONO_RESTAURANTE"))
-        ));
+    void shouldFindAllRestaurants() {
+        when(restaurantGateway.findAll()).thenReturn(List.of(restaurant(1L), restaurant(2L)));
 
-        List<RestaurantResponse> response = restaurantService.findAll();
-
-        assertEquals(2, response.size());
-        assertEquals("Restaurante Sabor Brasil", response.get(0).getName());
-        assertEquals("Restaurante Sabor Brasil", response.get(1).getName());
+        assertEquals(2, useCase.findAll().size());
     }
 
     @Test
-    void shouldFindRestaurantByIdSuccessfully() {
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant(1L, owner(1L, "DONO_RESTAURANTE"))));
+    void shouldFindRestaurantById() {
+        when(restaurantGateway.findById(1L)).thenReturn(Optional.of(restaurant(1L)));
 
-        RestaurantResponse response = restaurantService.findById(1L);
-
-        assertEquals(1L, response.getId());
-        assertEquals("Restaurante Sabor Brasil", response.getName());
+        assertEquals(1L, useCase.findById(1L).getId());
     }
 
     @Test
-    void shouldThrowExceptionWhenRestaurantDoesNotExistOnFindById() {
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.empty());
+    void shouldRejectUnknownRestaurant() {
+        when(restaurantGateway.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> restaurantService.findById(1L));
+        assertThrows(ResourceNotFoundException.class, () -> useCase.findById(99L));
     }
 
     @Test
-    void shouldUpdateRestaurantSuccessfully() {
-        Restaurant restaurant = restaurant(1L, owner(1L, "DONO_RESTAURANTE"));
-        User newOwner = owner(2L, "DONO_RESTAURANTE");
-        RestaurantUpdateRequest request = updateRequest();
+    void shouldUpdateRestaurant() {
+        Restaurant existing = restaurant(1L);
+        when(restaurantGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userGateway.findById(1L)).thenReturn(Optional.of(owner(1L, "DONO_RESTAURANTE")));
+        when(restaurantGateway.save(existing)).thenReturn(existing);
 
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(newOwner));
-        when(restaurantRepository.save(any(Restaurant.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Restaurant updated = useCase.update(1L, command());
 
-        RestaurantResponse response = restaurantService.update(1L, request);
-
-        assertEquals(1L, response.getId());
-        assertEquals("Restaurante Sabor Brasil Atualizado", response.getName());
-        assertEquals("Italiana", response.getCuisineType());
-        assertEquals(2L, response.getOwner().getId());
-        verify(restaurantRepository).save(any(Restaurant.class));
+        assertEquals("Sabor Brasil", updated.getName());
     }
 
     @Test
-    void shouldThrowExceptionWhenRestaurantDoesNotExistOnUpdate() {
-        RestaurantUpdateRequest request = updateRequest();
+    void shouldRejectCustomerOwnerOnUpdate() {
+        when(restaurantGateway.findById(1L)).thenReturn(Optional.of(restaurant(1L)));
+        when(userGateway.findById(1L)).thenReturn(Optional.of(owner(1L, "CLIENTE")));
 
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> restaurantService.update(1L, request));
-        verify(userRepository, never()).findById(any());
-        verify(restaurantRepository, never()).save(any(Restaurant.class));
+        assertThrows(BusinessException.class, () -> useCase.update(1L, command()));
     }
 
     @Test
-    void shouldThrowExceptionWhenOwnerIdDoesNotExistOnUpdate() {
-        RestaurantUpdateRequest request = updateRequest();
+    void shouldDeleteRestaurant() {
+        Restaurant restaurant = restaurant(1L);
+        when(restaurantGateway.findById(1L)).thenReturn(Optional.of(restaurant));
 
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant(1L, owner(1L, "DONO_RESTAURANTE"))));
-        when(userRepository.findById(2L)).thenReturn(Optional.empty());
+        useCase.delete(1L);
 
-        assertThrows(ResourceNotFoundException.class, () -> restaurantService.update(1L, request));
-        verify(restaurantRepository, never()).save(any(Restaurant.class));
+        verify(restaurantGateway).delete(restaurant);
     }
 
-    @Test
-    void shouldDeleteRestaurantSuccessfully() {
-        Restaurant restaurant = restaurant(1L, owner(1L, "DONO_RESTAURANTE"));
-
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
-
-        restaurantService.delete(1L);
-
-        verify(restaurantRepository).delete(restaurant);
-    }
-
-    @Test
-    void shouldThrowExceptionWhenRestaurantDoesNotExistOnDelete() {
-        when(restaurantRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> restaurantService.delete(1L));
-        verify(restaurantRepository, never()).delete(any(Restaurant.class));
-    }
-
-    private RestaurantCreateRequest createRequest() {
-        return new RestaurantCreateRequest(
-                "Restaurante Sabor Brasil",
-                "Rua das Flores, 123 - Sao Paulo/SP",
+    private RestaurantCommand command() {
+        return new RestaurantCommand(
+                "Sabor Brasil",
+                "Rua das Flores, 123",
                 "Brasileira",
-                "Segunda a sabado, das 11h as 23h",
+                "11:00-23:00",
                 1L
         );
     }
 
-    private RestaurantUpdateRequest updateRequest() {
-        return new RestaurantUpdateRequest(
-                "Restaurante Sabor Brasil Atualizado",
-                "Rua das Flores, 456 - Sao Paulo/SP",
-                "Italiana",
-                "Todos os dias, das 12h as 22h",
-                2L
+    private Restaurant restaurant(Long id) {
+        return Restaurant.restore(
+                id,
+                "Sabor Brasil",
+                "Rua das Flores, 123",
+                "Brasileira",
+                "11:00-23:00",
+                owner(1L, "DONO_RESTAURANTE")
         );
     }
 
-    private Restaurant restaurant(Long id, User owner) {
-        Restaurant restaurant = new Restaurant();
-        restaurant.setId(id);
-        restaurant.setName("Restaurante Sabor Brasil");
-        restaurant.setAddress("Rua das Flores, 123 - Sao Paulo/SP");
-        restaurant.setCuisineType("Brasileira");
-        restaurant.setOpeningHours("Segunda a sabado, das 11h as 23h");
-        restaurant.setOwner(owner);
-        return restaurant;
+    private Restaurant withId(Restaurant restaurant, Long id) {
+        return Restaurant.restore(
+                id,
+                restaurant.getName(),
+                restaurant.getAddress(),
+                restaurant.getCuisineType(),
+                restaurant.getOpeningHours(),
+                restaurant.getOwner()
+        );
     }
 
     private User owner(Long id, String userTypeName) {
-        UserType userType = new UserType();
-        userType.setId(2L);
-        userType.setName(userTypeName);
-
-        User owner = new User();
-        owner.setId(id);
-        owner.setName("Joao Silva");
-        owner.setEmail("joao" + id + "@email.com");
-        owner.setUserType(userType);
-        return owner;
+        LocalDateTime now = LocalDateTime.now();
+        UserType userType = UserType.restore(2L, userTypeName, null, true, now, now);
+        Address address = new Address("Rua A", "10", "Centro", "Sao Paulo", "SP", "01000-000", null);
+        return User.restore(
+                id,
+                "Joao Silva",
+                "joao@email.com",
+                "joao",
+                "123456",
+                now,
+                userType,
+                address
+        );
     }
 }

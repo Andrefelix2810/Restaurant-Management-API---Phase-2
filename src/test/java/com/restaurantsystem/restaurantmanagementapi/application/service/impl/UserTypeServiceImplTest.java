@@ -1,27 +1,24 @@
 package com.restaurantsystem.restaurantmanagementapi.application.service.impl;
 
+import com.restaurantsystem.restaurantmanagementapi.application.port.in.command.UserTypeCommand;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserPersistencePort;
+import com.restaurantsystem.restaurantmanagementapi.application.port.out.UserTypePersistencePort;
 import com.restaurantsystem.restaurantmanagementapi.domain.entity.UserType;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.BusinessException;
 import com.restaurantsystem.restaurantmanagementapi.domain.exception.ResourceNotFoundException;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserRepository;
-import com.restaurantsystem.restaurantmanagementapi.infrastructure.persistence.UserTypeRepository;
-import com.restaurantsystem.restaurantmanagementapi.mapper.UserTypeMapper;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserTypeCreateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.request.UserTypeUpdateRequest;
-import com.restaurantsystem.restaurantmanagementapi.presentation.dto.response.UserTypeResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,154 +27,153 @@ import static org.mockito.Mockito.when;
 class UserTypeServiceImplTest {
 
     @Mock
-    private UserTypeRepository userTypeRepository;
+    private UserTypePersistencePort userTypeGateway;
 
     @Mock
-    private UserRepository userRepository;
+    private UserPersistencePort userGateway;
 
-    private UserTypeServiceImpl userTypeService;
+    private UserTypeServiceImpl useCase;
 
     @BeforeEach
     void setUp() {
-        userTypeService = new UserTypeServiceImpl(userTypeRepository, userRepository, new UserTypeMapper());
+        useCase = new UserTypeServiceImpl(userTypeGateway, userGateway);
     }
 
     @Test
-    void shouldCreateUserTypeSuccessfully() {
-        UserTypeCreateRequest request = new UserTypeCreateRequest(" CUSTOMER ");
+    void shouldCreateNormalizedUserType() {
+        when(userTypeGateway.save(any(UserType.class))).thenAnswer(invocation -> withId(invocation.getArgument(0), 1L));
 
-        when(userTypeRepository.existsByNameIgnoreCase("CUSTOMER")).thenReturn(false);
-        when(userTypeRepository.save(any(UserType.class))).thenAnswer(invocation -> {
-            UserType userType = invocation.getArgument(0);
-            userType.setId(1L);
-            return userType;
-        });
+        UserType created = useCase.create(new UserTypeCommand("  CLIENTE  "));
 
-        UserTypeResponse response = userTypeService.create(request);
-
-        assertEquals(1L, response.getId());
-        assertEquals("CUSTOMER", response.getName());
-        verify(userTypeRepository).save(any(UserType.class));
+        assertEquals(1L, created.getId());
+        assertEquals("CLIENTE", created.getName());
     }
 
     @Test
-    void shouldPreventDuplicatedUserType() {
-        UserTypeCreateRequest request = new UserTypeCreateRequest("CUSTOMER");
+    void shouldRejectDuplicatedUserType() {
+        when(userTypeGateway.existsByNameIgnoreCase("CLIENTE")).thenReturn(true);
 
-        when(userTypeRepository.existsByNameIgnoreCase("CUSTOMER")).thenReturn(true);
+        assertThrows(BusinessException.class, () -> useCase.create(new UserTypeCommand("CLIENTE")));
 
-        assertThrows(BusinessException.class, () -> userTypeService.create(request));
-        verify(userTypeRepository, never()).save(any(UserType.class));
+        verify(userTypeGateway, never()).save(any());
     }
 
     @Test
-    void shouldListUserTypes() {
-        when(userTypeRepository.findAll()).thenReturn(List.of(
-                userType(1L, "CUSTOMER"),
-                userType(2L, "RESTAURANT_OWNER")
-        ));
+    void shouldFindAllUserTypes() {
+        when(userTypeGateway.findAll()).thenReturn(List.of(userType(1L, "CLIENTE"), userType(2L, "DONO_RESTAURANTE")));
 
-        List<UserTypeResponse> response = userTypeService.findAll();
-
-        assertEquals(2, response.size());
-        assertEquals("CUSTOMER", response.get(0).getName());
-        assertEquals("RESTAURANT_OWNER", response.get(1).getName());
+        assertEquals(2, useCase.findAll().size());
     }
 
     @Test
-    void shouldFindUserTypeByIdSuccessfully() {
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.of(userType(1L, "CUSTOMER")));
+    void shouldFindUserTypeById() {
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(userType(1L, "CLIENTE")));
 
-        UserTypeResponse response = userTypeService.findById(1L);
-
-        assertEquals(1L, response.getId());
-        assertEquals("CUSTOMER", response.getName());
+        assertEquals("CLIENTE", useCase.findById(1L).getName());
     }
 
     @Test
-    void shouldThrowExceptionWhenFindByIdDoesNotExist() {
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.empty());
+    void shouldRejectUnknownUserType() {
+        when(userTypeGateway.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> userTypeService.findById(1L));
+        assertThrows(ResourceNotFoundException.class, () -> useCase.findById(99L));
     }
 
     @Test
-    void shouldUpdateUserTypeSuccessfully() {
-        UserTypeUpdateRequest request = new UserTypeUpdateRequest(" RESTAURANT_OWNER ");
+    void shouldUpdateUserType() {
+        UserType existing = userType(1L, "CLIENTE");
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userTypeGateway.save(existing)).thenReturn(existing);
 
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.of(userType(1L, "CUSTOMER")));
-        when(userTypeRepository.existsByNameIgnoreCase("RESTAURANT_OWNER")).thenReturn(false);
-        when(userTypeRepository.save(any(UserType.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        UserType updated = useCase.update(1L, new UserTypeCommand("DONO_RESTAURANTE"));
 
-        UserTypeResponse response = userTypeService.update(1L, request);
-
-        assertEquals(1L, response.getId());
-        assertEquals("RESTAURANT_OWNER", response.getName());
-        verify(userTypeRepository).save(any(UserType.class));
+        assertEquals("DONO_RESTAURANTE", updated.getName());
     }
 
     @Test
-    void shouldNotCheckDuplicityWhenUpdatingKeepingSameNameIgnoringCase() {
-        UserTypeUpdateRequest request = new UserTypeUpdateRequest(" customer ");
+    void shouldRejectUserTypeOutsideClosedCatalog() {
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> useCase.create(new UserTypeCommand("ADMIN"))
+        );
 
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.of(userType(1L, "CUSTOMER")));
-        when(userTypeRepository.save(any(UserType.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        UserTypeResponse response = userTypeService.update(1L, request);
-
-        assertEquals("customer", response.getName());
-        verify(userTypeRepository, never()).existsByNameIgnoreCase(anyString());
-        verify(userTypeRepository).save(any(UserType.class));
+        assertEquals(
+                "Invalid user type. Allowed values: CLIENTE or DONO_RESTAURANTE",
+                exception.getMessage()
+        );
+        verify(userTypeGateway, never()).save(any());
     }
 
     @Test
-    void shouldThrowExceptionWhenUpdatingNonexistentUserType() {
-        UserTypeUpdateRequest request = new UserTypeUpdateRequest("CUSTOMER");
+    void shouldAllowUpdateWithoutChangingName() {
+        UserType existing = userType(1L, "CLIENTE");
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userTypeGateway.save(existing)).thenReturn(existing);
 
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> userTypeService.update(1L, request));
-        verify(userTypeRepository, never()).save(any(UserType.class));
+        assertEquals("CLIENTE", useCase.update(1L, new UserTypeCommand("cliente")).getName());
     }
 
     @Test
-    void shouldPreventUpdatingToDuplicatedName() {
-        UserTypeUpdateRequest request = new UserTypeUpdateRequest("RESTAURANT_OWNER");
+    void shouldRejectDuplicatedNameOnUpdate() {
+        UserType existing = userType(1L, "CLIENTE");
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userTypeGateway.existsByNameIgnoreCase("DONO_RESTAURANTE")).thenReturn(true);
 
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.of(userType(1L, "CUSTOMER")));
-        when(userTypeRepository.existsByNameIgnoreCase("RESTAURANT_OWNER")).thenReturn(true);
-
-        assertThrows(BusinessException.class, () -> userTypeService.update(1L, request));
-        verify(userTypeRepository, never()).save(any(UserType.class));
+        assertThrows(
+                BusinessException.class,
+                () -> useCase.update(1L, new UserTypeCommand("DONO_RESTAURANTE"))
+        );
     }
 
     @Test
-    void shouldDeleteUserTypeSuccessfully() {
-        UserType userType = userType(1L, "CUSTOMER");
+    void shouldRejectRenamingUserTypeAssociatedWithUsers() {
+        UserType existing = userType(1L, "CLIENTE");
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(existing));
+        when(userGateway.existsByUserTypeId(1L)).thenReturn(true);
 
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.of(userType));
-        when(userRepository.existsByUserTypeId(1L)).thenReturn(false);
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> useCase.update(1L, new UserTypeCommand("DONO_RESTAURANTE"))
+        );
 
-        userTypeService.delete(1L);
-
-        verify(userTypeRepository).delete(userType);
+        assertEquals(
+                "User type is associated with users and cannot be changed. Update the userTypeId of the user instead",
+                exception.getMessage()
+        );
+        verify(userTypeGateway, never()).save(any());
     }
 
     @Test
-    void shouldPreventDeletingUserTypeAssociatedWithUsers() {
-        when(userTypeRepository.findById(1L)).thenReturn(Optional.of(userType(1L, "CUSTOMER")));
-        when(userRepository.existsByUserTypeId(1L)).thenReturn(true);
+    void shouldDeleteUnusedUserType() {
+        UserType existing = userType(1L, "CLIENTE");
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(existing));
 
-        assertThrows(BusinessException.class, () -> userTypeService.delete(1L));
-        verify(userTypeRepository, never()).delete(any(UserType.class));
+        useCase.delete(1L);
+
+        verify(userTypeGateway).delete(existing);
+    }
+
+    @Test
+    void shouldRejectDeletingUserTypeAssociatedWithUsers() {
+        when(userTypeGateway.findById(1L)).thenReturn(Optional.of(userType(1L, "CLIENTE")));
+        when(userGateway.existsByUserTypeId(1L)).thenReturn(true);
+
+        assertThrows(BusinessException.class, () -> useCase.delete(1L));
     }
 
     private UserType userType(Long id, String name) {
-        UserType userType = new UserType();
-        userType.setId(id);
-        userType.setName(name);
-        userType.setDescription(name + " description");
-        userType.setActive(true);
-        return userType;
+        LocalDateTime now = LocalDateTime.now();
+        return UserType.restore(id, name, null, true, now, now);
+    }
+
+    private UserType withId(UserType userType, Long id) {
+        return UserType.restore(
+                id,
+                userType.getName(),
+                userType.getDescription(),
+                userType.getActive(),
+                userType.getCreatedAt(),
+                userType.getUpdatedAt()
+        );
     }
 }
